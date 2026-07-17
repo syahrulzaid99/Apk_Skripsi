@@ -5,7 +5,7 @@ const { randomUUID } = require('crypto');
 const admin = require('firebase-admin');
 
 const { db } = require('../firebaseAdmin');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requireAuthApi, requireRole } = require('../middleware/auth');
 const { generateSequentialCode, generateResiCode } = require('../utils/generateCode');
 
 router.use(express.urlencoded({ extended: false }));
@@ -217,7 +217,7 @@ router.post('/gudang/orders/:id/send', requireAuth, requireRole(['gudang']), csr
 // ====================== GUDANG: API for Flutter ======================
 
 // GET orders ready for packing
-router.get('/api/v1/gudang/orders', requireAuth, requireRole(['gudang']), async (req, res) => {
+router.get('/api/v1/gudang/orders', requireAuthApi, requireRole(['gudang']), async (req, res) => {
     try {
         const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
         const allOrders = snap.docs.map(d => d.data());
@@ -235,6 +235,7 @@ router.get('/api/v1/gudang/orders', requireAuth, requireRole(['gudang']), async 
             kode_order: o.kode_order,
             cabang_id: o.cabang_id,
             cabang_username: o.cabang_username || usersMap[o.cabang_id]?.username || o.cabang_id,
+            cabang_nama: usersMap[o.cabang_id]?.nama_cabang || '',
             status: o.status || 'pending',
             total_harga: o.total_harga || 0,
             jumlah_item: Array.isArray(o.items) ? o.items.length : 0,
@@ -253,7 +254,7 @@ router.get('/api/v1/gudang/orders', requireAuth, requireRole(['gudang']), async 
 });
 
 // POST pack order
-router.post('/api/v1/gudang/orders/:id/pack', requireAuth, requireRole(['gudang']), async (req, res) => {
+router.post('/api/v1/gudang/orders/:id/pack', requireAuthApi, requireRole(['gudang']), async (req, res) => {
     try {
         const id = req.params.id;
         const ref = db.collection('orders').doc(id);
@@ -292,7 +293,7 @@ router.post('/api/v1/gudang/orders/:id/pack', requireAuth, requireRole(['gudang'
 });
 
 // POST send order (create shipment)
-router.post('/api/v1/gudang/orders/:id/send', requireAuth, requireRole(['gudang']), async (req, res) => {
+router.post('/api/v1/gudang/orders/:id/send', requireAuthApi, requireRole(['gudang']), async (req, res) => {
     try {
         const id = req.params.id;
         const ref = db.collection('orders').doc(id);
@@ -356,6 +357,59 @@ router.post('/api/v1/gudang/orders/:id/send', requireAuth, requireRole(['gudang'
         return res.json({ ok: true, status: 'dikirim', kode_pengiriman, shipment_id: shipmentId });
     } catch (e) {
         console.error(e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
+// ====================== GUDANG: LIST SHIPMENTS (riwayat pengiriman) ======================
+router.get('/api/v1/gudang/shipments', requireAuthApi, requireRole(['gudang']), async (req, res) => {
+    try {
+        const snap = await db.collection('shipments')
+            .where('pengirim', '==', req.user.uid)
+            .get();
+
+        const shipments = snap.docs.map(d => {
+            const s = d.data();
+            return {
+                id: s.id || d.id,
+                kode_pengiriman: s.kode_pengiriman || '',
+                po_number: s.po_number || '',
+                so_number: s.so_number || '',
+                penerima_id: s.penerima || '',
+                penerima_username: s.penerima_username || '',
+                penerima_nama: s.penerima_nama || '',
+                status: s.status || 'dikirim',
+                total_harga: s.total_harga || 0,
+                jumlah_item: Array.isArray(s.data_barang) ? s.data_barang.length : (s.jumlah_item || 0),
+                data_barang: s.data_barang || [],
+                keterangan: s.keterangan || '',
+                diterima_at: s.diterima_at || null,
+                createdAt: s.createdAt || null,
+            };
+        });
+
+        // Sort by createdAt descending (newest first)
+        shipments.sort((a, b) => {
+            const da = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+            const db2 = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+            return db2 - da;
+        });
+
+        // Enrich dengan nama cabang penerima
+        const penerimaIds = [...new Set(shipments.map(s => s.penerima_id).filter(Boolean))];
+        if (penerimaIds.length > 0) {
+            const usersMap = await getUsersMapByIds(penerimaIds);
+            for (const s of shipments) {
+                if (usersMap[s.penerima_id]) {
+                    s.penerima_username = s.penerima_username || usersMap[s.penerima_id].username || s.penerima_id;
+                    s.penerima_nama = s.penerima_nama || usersMap[s.penerima_id].nama_cabang || '';
+                }
+            }
+        }
+
+        return res.json({ shipments });
+    } catch (e) {
+        console.error('[Gudang] Gagal memuat shipments:', e);
         return res.status(500).json({ error: 'server_error' });
     }
 });

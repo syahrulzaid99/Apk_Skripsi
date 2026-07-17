@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
 
 class CabangPenjualanPage extends StatefulWidget {
   const CabangPenjualanPage({super.key});
@@ -105,7 +106,14 @@ class _CreateSaleTabState extends State<_CreateSaleTab> with AutomaticKeepAliveC
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    if (_loading && _products.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _products.isEmpty) return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: 5,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: ShimmerBox(width: double.infinity, height: 76, borderRadius: BorderRadius.circular(12)),
+      ),
+    );
 
     return Column(children: [
       Padding(padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), child: TextField(
@@ -151,7 +159,7 @@ class _CreateSaleTabState extends State<_CreateSaleTab> with AutomaticKeepAliveC
             ))),
       if (_totalItems > 0) Container(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-        decoration: BoxDecoration(color: cs.surfaceContainerLow, boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, -2))]),
+        decoration: BoxDecoration(color: cs.surfaceContainerLow, boxShadow: [BoxShadow(color: cs.shadow, blurRadius: 8, offset: const Offset(0, -2))]),
         child: SafeArea(top: false, child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             Text('$_totalItems item', style: TextStyle(fontSize: 12, color: cs.outline)),
@@ -202,7 +210,11 @@ class _SalesHistoryTabState extends State<_SalesHistoryTab> with AutomaticKeepAl
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    if (_loading && _sales.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _sales.isEmpty) return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4,
+      itemBuilder: (_, __) => const ShimmerCard(),
+    );
 
     return RefreshIndicator(onRefresh: _fetch, child: _sales.isEmpty
         ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [

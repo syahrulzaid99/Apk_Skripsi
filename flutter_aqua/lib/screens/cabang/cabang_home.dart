@@ -28,6 +28,7 @@ class _CabangHomePageState extends State<CabangHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final pages = [
       const CabangDashboardPage(),
       const CabangStokOrderPage(),
@@ -77,22 +78,22 @@ class _CabangHomePageState extends State<CabangHomePage> {
                   padding: const EdgeInsets.only(top: 6),
                   child: Container(
                     width: 48, height: 48,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFF0099DD),
+                      color: cs.primary,
                     ),
-                    child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                    child: Icon(Icons.qr_code_scanner, color: cs.onPrimary),
                   ),
                 ),
                 selectedIcon: Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Container(
                     width: 48, height: 48,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFF0099DD),
+                      color: cs.primary,
                     ),
-                    child: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                    child: Icon(Icons.qr_code_scanner, color: cs.onPrimary),
                   ),
                 ),
                 label: 'Scan',

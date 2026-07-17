@@ -57,9 +57,6 @@ function requireRole(roles = []) {
     };
 }
 
-module.exports = { requireAuthApi, requireRole };
-
-
 // function requireRole(roles = []) {
 //     return (req, res, next) => {
 //         const role = req.user?.role || req.profile?.role;

@@ -9,43 +9,94 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <meta name="csrf-token" content="<%= csrfToken %>">
+
+    <!-- Theme: anti-flash -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('aqua-theme');
+            if (theme === 'dark') {
+                document.documentElement.classList.add('theme-dark');
+            }
+        })();
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg-color: #4e73df;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --card-shadow: 0 25px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+            --brand-color: #4e73df;
+            --brand-gradient: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+            --text-muted: #8f92a1;
+            --text-title: #4e73df;
+            --input-bg: #f8f9fc;
+            --input-border: #eaecfb;
+            --input-focus-bg: #ffffff;
+            --input-focus-border: #4e73df;
+            --icon-color: #b7b9cc;
+            --text-main: inherit;
+        }
+
+        .theme-dark {
+            --bg-color: #1a1c23;
+            --card-bg: rgba(36, 38, 45, 0.95);
+            --card-shadow: 0 25px 60px rgba(0,0,0,0.5);
+            --brand-color: #7aa2f0;
+            --brand-gradient: linear-gradient(135deg, #7aa2f0 0%, #4e73df 100%);
+            --text-muted: #9ea0b4;
+            --text-title: #7aa2f0;
+            --input-bg: #2b2d35;
+            --input-border: #404452;
+            --input-focus-bg: #24262d;
+            --input-focus-border: #7aa2f0;
+            --icon-color: #5c6072;
+            --text-main: #d1d3e2;
+        }
+
         body {
             font-family: 'Inter', sans-serif;
-            background: #4e73df;
+            background: var(--bg-color);
             min-height: 100vh;
             margin: 0;
             display: flex;
             align-items: center;
+            transition: background 0.4s ease;
         }
+
         .login-card {
             border: none;
             border-radius: 24px;
-            background: rgba(255, 255, 255, 0.95);
+            background: var(--card-bg);
             backdrop-filter: blur(20px);
-            box-shadow: 0 25px 60px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6);
+            box-shadow: var(--card-shadow);
             overflow: hidden;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.4s ease;
         }
+
         .login-card:hover {
             transform: translateY(-5px);
         }
+
         .form-control-user {
             border-radius: 14px !important;
             padding: 1.5rem 1.25rem !important;
             font-size: 1.05rem !important;
-            border: 2px solid #eaecfb !important;
+            border: 2px solid var(--input-border) !important;
             transition: all 0.3s ease !important;
-            background: #f8f9fc !important;
+            background: var(--input-bg) !important;
+            color: var(--text-main) !important;
         }
+
         .form-control-user:focus {
-            border-color: #4e73df !important;
-            background: #ffffff !important;
+            border-color: var(--input-focus-border) !important;
+            background: var(--input-focus-bg) !important;
             box-shadow: 0 0 0 4px rgba(78, 115, 223, 0.15) !important;
         }
+
         .btn-login {
-            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+            background: var(--brand-gradient);
             border: none;
             border-radius: 14px !important;
             padding: 1rem !important;
@@ -54,41 +105,96 @@
             letter-spacing: 1px;
             box-shadow: 0 6px 20px rgba(78, 115, 223, 0.4) !important;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+            color: #fff !important;
         }
+
         .btn-login:hover {
             transform: translateY(-3px) !important;
             box-shadow: 0 10px 25px rgba(78, 115, 223, 0.5) !important;
         }
+
         .title-brand {
             font-weight: 900;
-            color: #4e73df;
+            color: var(--text-title);
             font-size: 2.8rem;
             letter-spacing: -1.5px;
             margin-bottom: 5px;
             text-shadow: 0px 4px 10px rgba(0,0,0,0.05);
         }
+
+        .theme-dark .title-brand {
+            text-shadow: none;
+        }
+
         .input-icon-wrap {
             position: relative;
         }
+
         .input-icon-wrap i {
             position: absolute;
             top: 50%;
             left: 20px;
             transform: translateY(-50%);
-            color: #b7b9cc;
+            color: var(--icon-color);
             font-size: 1.1rem;
             transition: 0.3s;
+            z-index: 1;
+            pointer-events: none;
         }
+
         .input-icon-wrap input {
             padding-left: 55px !important;
         }
-        .input-icon-wrap input:focus + i {
-            color: #4e73df;
+
+        .theme-dark .input-icon-wrap input::placeholder {
+            color: #5c6072 !important;
+        }
+
+        /* Theme toggle on login */
+        .theme-toggle-login {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 999;
+        }
+
+        .theme-toggle-login button {
+            background: rgba(255,255,255,0.15);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .theme-toggle-login button:hover {
+            background: rgba(255,255,255,0.25);
+            transform: scale(1.05);
+        }
+
+        .theme-dark .theme-toggle-login button {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.1);
+        }
+
+        .theme-dark .text-muted {
+            color: var(--text-muted) !important;
         }
     </style>
 </head>
 
 <body>
+    <!-- Theme Toggle -->
+    <div class="theme-toggle-login">
+        <button id="loginThemeToggle" title="Ganti Tema">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
     <div class="container w-100">
         <div class="row justify-content-center align-items-center">
             <div class="col-xl-5 col-lg-6 col-md-8">
@@ -124,10 +230,36 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/startbootstrap-sb-admin-2/4.1.4/js/sb-admin-2.min.js"></script>
+
+    <!-- Theme Toggle -->
+    <script>
+        (function() {
+            var btn = document.getElementById('loginThemeToggle');
+            var icon = btn.querySelector('i');
+
+            function updateIcon(isDark) {
+                if (isDark) {
+                    icon.className = 'fas fa-sun';
+                } else {
+                    icon.className = 'fas fa-moon';
+                }
+            }
+
+            updateIcon(document.documentElement.classList.contains('theme-dark'));
+
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var isDark = document.documentElement.classList.toggle('theme-dark');
+                localStorage.setItem('aqua-theme', isDark ? 'dark' : 'light');
+                updateIcon(isDark);
+            });
+        })();
+    </script>
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             var err = "<%= typeof error !== 'undefined' ? error : '' %>";
-            
+
             if (err === 'invalid') {
                 Swal.fire({
                     icon: 'error',

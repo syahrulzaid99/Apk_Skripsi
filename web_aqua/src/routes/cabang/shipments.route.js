@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 
 const { db } = require('../../firebaseAdmin');
-const { requireAuth, requireRole } = require('../../middleware/auth');
+const { requireAuth, requireRole, requireAuthApi } = require('../../middleware/auth');
 const admin = require('firebase-admin');
 const { uploadToStorage } = require('../../storageHelper');
 
@@ -216,6 +216,25 @@ router.post('/cabang/shipments/:id/confirm',
                 diterima_oleh: req.user.uid
             });
 
+            // 🔗 Update status order terkait
+            const poNum = dataCur.po_number || dataCur.kode_order;
+            if (poNum) {
+                try {
+                    const orderSnap = await db.collection('orders')
+                        .where('kode_order', '==', poNum)
+                        .limit(1)
+                        .get();
+                    if (!orderSnap.empty) {
+                        await orderSnap.docs[0].ref.update({
+                            status: 'diterima',
+                            updatedAt: new Date(),
+                        });
+                    }
+                } catch (oe) {
+                    console.error('[Cabang Confirm] Gagal update order:', oe);
+                }
+            }
+
             // Tambah stok ke toko cabang (branch_stocks)
             const batch = db.batch();
             let hasOp2 = false;
@@ -241,5 +260,10 @@ router.post('/cabang/shipments/:id/confirm',
             return res.redirect('/cabang/shipments?err=' + encodeURIComponent('Gagal konfirmasi pengiriman'));
         }
     });
+
+// ====================== CABANG: API for Flutter ======================
+// NOTE: Endpoint API Flutter sudah ditangani di src/routes/shipments.route.js
+// (GET /api/v1/cabang/shipments, GET/POST /api/v1/cabang/shipments/:kode_pengiriman).
+// Cukup pastikan path di api_client.dart cocok dengan route tersebut.
 
 module.exports = router;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_client.dart';
+import '../../widgets/shared.dart' show isConnectionError, showChangeServerDialog;
+import '../admin/admin_home.dart';
 import '../cabang/cabang_home.dart';
 import '../sales/sales_home.dart';
 import '../gudang/gudang_home.dart';
@@ -53,6 +55,8 @@ class _LoginPageState extends State<LoginPage>
 
   Widget _getHomeByRole(String role) {
     switch (role) {
+      case 'admin':
+        return const AdminHomePage();
       case 'sales':
         return const SalesHomePage();
       case 'gudang':
@@ -79,7 +83,11 @@ class _LoginPageState extends State<LoginPage>
         (_) => false,
       );
     } catch (e) {
-      _snack(e.toString().replaceFirst('Exception: ', ''));
+      if (isConnectionError(e)) {
+        _snack('Gagal terhubung ke server. Cek IP server (ikon ⚙️ di atas).');
+      } else {
+        _snack(e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -138,6 +146,18 @@ class _LoginPageState extends State<LoginPage>
                                   color: Colors.white.withValues(alpha: 0.82)),
                             ),
                           ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: IconButton(
+                          onPressed: () async {
+                            await showChangeServerDialog(context);
+                          },
+                          icon: const Icon(Icons.settings_outlined,
+                              color: Colors.white),
+                          tooltip: 'Pengaturan Server',
                         ),
                       ),
                     ],
@@ -216,15 +236,16 @@ class _LoginPageState extends State<LoginPage>
                                 style: FilledButton.styleFrom(
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(14)),
-                                  backgroundColor: const Color(0xFF0099DD),
+                                  backgroundColor: cs.primary,
+                                  foregroundColor: cs.onPrimary,
                                 ),
                                 child: _loading
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 22,
                                         height: 22,
                                         child: CircularProgressIndicator(
                                             strokeWidth: 2.5,
-                                            color: Colors.white))
+                                            color: cs.onPrimary))
                                     : const Row(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,

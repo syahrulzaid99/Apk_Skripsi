@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -96,10 +97,14 @@ class InfoRow extends StatelessWidget {
         const SizedBox(width: 8),
         SizedBox(
             width: 70,
-            child: Text(label, style: const TextStyle(color: Colors.black54))),
+            child: Text(label,
+                style: TextStyle(
+                    color: cs.onSurface.withValues(alpha: 0.6)))),
         Expanded(
             child: Text(value,
-                style: const TextStyle(fontWeight: FontWeight.w800))),
+                style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: cs.onSurface))),
       ],
     );
   }
@@ -131,7 +136,7 @@ class ProductThumb extends StatelessWidget {
         height: 56,
         fit: BoxFit.cover,
         loadingBuilder: (c, w, p) =>
-            p == null ? w : Container(color: Colors.black12, width: 56, height: 56),
+            p == null ? w : Container(color: cs.surfaceContainerHighest, width: 56, height: 56),
         errorBuilder: (_, __, ___) => Container(
           width: 56,
           height: 56,
@@ -149,11 +154,13 @@ class ServerProofs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     if (urls.isEmpty) {
-      return const Card(
+      return Card(
           child: Padding(
-              padding: EdgeInsets.all(14),
-              child: Text('Belum ada bukti di server')));
+              padding: const EdgeInsets.all(14),
+              child: Text('Belum ada bukti di server',
+                  style: TextStyle(color: cs.onSurfaceVariant))));
     }
     final fixed =
         urls.map((u) => absolutizeUrl(u)).where((u) => u.isNotEmpty).toList();
@@ -172,9 +179,10 @@ class ServerProofs extends StatelessWidget {
           fixed[i],
           fit: BoxFit.cover,
           loadingBuilder: (c, w, p) =>
-              p == null ? w : Container(color: Colors.black12),
+              p == null ? w : Container(color: cs.surfaceContainerHighest),
           errorBuilder: (_, __, ___) => Container(
-              color: Colors.black12, child: const Icon(Icons.broken_image)),
+              color: cs.surfaceContainerHighest,
+              child: Icon(Icons.broken_image, color: cs.onSurfaceVariant)),
         ),
       ),
     );
@@ -189,9 +197,12 @@ class LocalProofs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (photos.isEmpty) {
-      return const Card(
+      final cs = Theme.of(context).colorScheme;
+      return Card(
           child: Padding(
-              padding: EdgeInsets.all(14), child: Text('Belum ada foto')));
+              padding: const EdgeInsets.all(14),
+              child: Text('Belum ada foto',
+                  style: TextStyle(color: cs.onSurfaceVariant))));
     }
     return GridView.builder(
       shrinkWrap: true,
@@ -231,5 +242,141 @@ class LocalProofs extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+// ==================== CONNECTION HELPERS ====================
+
+/// True jika error berasal dari kegagalan koneksi ke server
+/// (timeout, DNS gagal, socket error, connection reset) — BUKAN error HTTP biasa.
+bool isConnectionError(Object e) {
+  if (e is SocketException) return true;
+  if (e is TimeoutException) return true;
+  if (e is HttpException) return true;
+  if (e is HandshakeException) return true;
+  final msg = e.toString().toLowerCase();
+  return msg.contains('socket') ||
+      msg.contains('timeout') ||
+      msg.contains('connection') ||
+      msg.contains('failed to connect') ||
+      msg.contains('no address associated') ||
+      msg.contains('network is unreachable') ||
+      msg.contains('connection refused');
+}
+
+/// Tampilkan dialog untuk mengubah IP/URL server backend secara langsung.
+/// Mengembalikan `true` jika user menyimpan URL baru (berhasil diubah).
+Future<bool> showChangeServerDialog(BuildContext context) async {
+  final ctrl = TextEditingController(text: ApiConfig.activeUrl);
+  final focusNode = FocusNode();
+  var loading = false;
+  var error = '';
+
+  Future<void> doSave(StateSetter setSt) async {
+    // Tutup keyboard dulu, lalu simpan
+    focusNode.unfocus();
+    await Future.delayed(const Duration(milliseconds: 200)); // tunggu keyboard animasi
+
+    final ok = await _commitServerUrl(
+      ctrl.text.trim(),
+      (m) => setSt(() => error = m),
+      (v) => setSt(() => loading = v),
+    );
+    if (ok) {
+      Navigator.of(context, rootNavigator: true).pop(true);
+    }
+  }
+
+  final result = await showDialog<bool>(
+    context: context,
+    useRootNavigator: true,
+    builder: (dialogCtx) => StatefulBuilder(
+      builder: (ctx, setSt) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.dns, size: 22),
+          SizedBox(width: 8),
+          Text('Ubah IP Server'),
+        ]),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Masukkan IP/URL server backend yang benar lalu simpan.',
+                style: TextStyle(fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                focusNode: focusNode,
+                decoration: InputDecoration(
+                  labelText: 'Server URL',
+                  hintText: 'http://192.168.x.x:3000',
+                  prefixIcon: const Icon(Icons.link),
+                  border: const OutlineInputBorder(),
+                  errorText: error.isNotEmpty ? error : null,
+                ),
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => doSave(setSt),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: loading
+                ? null
+                : () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton.icon(
+            onPressed: loading ? null : () => doSave(setSt),
+            icon: loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save),
+            label: const Text('Simpan'),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  ctrl.dispose();
+  focusNode.dispose();
+  return result == true;
+}
+
+/// Validasi & simpan URL server.
+/// [setLoading] mengatur state loading dialog, [setError] menampilkan pesan error.
+/// Mengembalikan true jika berhasil disimpan.
+Future<bool> _commitServerUrl(
+  String url,
+  void Function(String) setError,
+  void Function(bool) setLoading,
+) async {
+  if (url.isEmpty) {
+    setError('URL tidak boleh kosong');
+    return false;
+  }
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    setError('URL harus dimulai dengan http:// atau https://');
+    return false;
+  }
+  setError('');
+  setLoading(true);
+  try {
+    await ApiConfig.setBaseUrl(url);
+    return true;
+  } catch (e) {
+    setError('Error: $e');
+    return false;
+  } finally {
+    setLoading(false);
   }
 }

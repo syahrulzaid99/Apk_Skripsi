@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../admin/admin_home.dart';
 import '../cabang/cabang_home.dart';
 import '../sales/sales_home.dart';
 import '../gudang/gudang_home.dart';
@@ -27,6 +28,8 @@ class _AuthGateState extends State<AuthGate> {
         return const SalesHomePage();
       case 'gudang':
         return const GudangHomePage();
+      case 'admin':
+        return const AdminHomePage();
       default:
         return const CabangHomePage();
     }
@@ -77,3 +80,4 @@ class _AuthGateState extends State<AuthGate> {
     );
   }
 }
+

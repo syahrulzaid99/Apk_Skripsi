@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_page.dart';
+import '../settings/settings_page.dart';
 import 'sales_dashboard_page.dart';
 import 'sales_create_order_page.dart';
 import 'sales_order_list_page.dart';
@@ -36,7 +37,18 @@ class _SalesHomePageState extends State<SalesHomePage> {
       appBar: AppBar(
         title: const Text('Sales - Aqua Japan'),
         centerTitle: true,
-        actions: [IconButton(onPressed: _logout, icon: const Icon(Icons.logout))],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SettingsPage()),
+              );
+            },
+            tooltip: 'Pengaturan',
+          ),
+          IconButton(onPressed: _logout, icon: const Icon(Icons.logout)),
+        ],
       ),
       body: IndexedStack(index: _idx, children: pages),
       bottomNavigationBar: Padding(

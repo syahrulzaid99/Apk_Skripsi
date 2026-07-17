@@ -63,10 +63,20 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex align-items-center justify-content-between">
         <h6 class="m-0 font-weight-bold text-primary">Daftar Cabang & Stok</h6>
-        <div class="input-group" style="max-width: 250px;">
-            <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari cabang ...">
-            <div class="input-group-append">
-                <span class="input-group-text"><i class="fas fa-search"></i></span>
+        <div class="d-flex align-items-center gap-2">
+            <select id="areaFilter" class="form-control form-control-sm" style="max-width: 200px;">
+                <option value="">Semua Area</option>
+                <% if (areas && areas.length > 0) { %>
+                    <% areas.forEach(a => { %>
+                        <option value="<%= a %>" <%= a === selectedArea ? 'selected' : '' %>><%= a %></option>
+                    <% }) %>
+                <% } %>
+            </select>
+            <div class="input-group" style="max-width: 250px;">
+                <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari cabang ...">
+                <div class="input-group-append">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                </div>
             </div>
         </div>
     </div>
@@ -245,6 +255,14 @@
         });
         $('#cabangTable_filter').hide();
         $('#tableSearch').on('keyup', function () { dt.search(this.value).draw(); });
+
+        // Filter area: redirect ke ?area=xxx (pertahankan ?cabang= jika ada)
+        $('#areaFilter').on('change', function () {
+            const params = new URLSearchParams(window.location.search);
+            const area = this.value;
+            if (area) params.set('area', area); else params.delete('area');
+            window.location.href = '/admin/cabang' + (params.toString() ? '?' + params.toString() : '');
+        });
 
         // DataTable untuk detail stok (jika ada)
         <% if (selectedCabang && selectedCabang.stocks && selectedCabang.stocks.length > 0) { %>

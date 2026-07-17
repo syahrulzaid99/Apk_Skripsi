@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
 import 'store_stock_page.dart';
 
 class CabangDashboardPage extends StatefulWidget {
@@ -44,7 +45,18 @@ class _CabangDashboardPageState extends State<CabangDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ShimmerBox(width: double.infinity, height: 100, borderRadius: BorderRadius.circular(12)),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: ShimmerBox(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12))),
+          const SizedBox(width: 12),
+          Expanded(child: ShimmerBox(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12))),
+        ]),
+      ],
+    );
     if (_error.isNotEmpty) {
       return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(_error, style: const TextStyle(color: Colors.red)),

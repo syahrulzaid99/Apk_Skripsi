@@ -1,6 +1,41 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 class ApiConfig {
-  // Ganti sesuai server kamu
-  static const String baseUrl = 'http://192.168.8.103:3000';
+
+  static const String defaultBaseUrl = 'http://192.168.8.101:3000';
+  static const String _storageKey = 'api_base_url';
+
+  static String? _cachedUrl;
+
+  /// Mendapatkan base URL - prioritas: runtime config > default
+  static String get baseUrl => _cachedUrl ?? defaultBaseUrl;
+
+  /// Initialize - panggil di main() untuk load URL dari storage.
+  /// Tidak memaksa migrasi apa pun; URL yang disimpan user tetap dipakai.
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedUrl = prefs.getString(_storageKey);
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      _cachedUrl = savedUrl;
+    }
+  }
+
+  /// Set base URL baru (runtime)
+  static Future<void> setBaseUrl(String url) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_storageKey, url);
+    _cachedUrl = url;
+  }
+
+  /// Reset ke default URL
+  static Future<void> resetToDefault() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storageKey);
+    _cachedUrl = null;
+  }
+
+  /// Dapatkan URL yang sedang aktif (untuk display)
+  static String get activeUrl => _cachedUrl ?? defaultBaseUrl;
 
   static Uri uri(String path) => Uri.parse('$baseUrl$path');
 }

@@ -77,6 +77,20 @@ router.get('/admin/cabang', requireAuth, requireRole(['admin']), async (req, res
             c.totalShipmentsDiterima = shipCountByCabang[c.id] || 0;
         }
 
+        // 7. Ekstrak daftar area (kota) unik untuk filter dropdown
+        const areaSet = new Set();
+        for (const c of cabangSummaries) {
+            if (c.kota) areaSet.add(c.kota);
+        }
+        const areas = Array.from(areaSet).sort((a, b) => a.localeCompare(b));
+
+        // 8. Filter berdasar area (query ?area=xxx)
+        const selectedArea = req.query.area || null;
+        let filteredSummaries = cabangSummaries;
+        if (selectedArea) {
+            filteredSummaries = cabangSummaries.filter(c => c.kota === selectedArea);
+        }
+
         // selectedCabang: jika ada query ?cabang=xxx
         const selectedCabangId = req.query.cabang || null;
         const selectedCabang = selectedCabangId
@@ -87,7 +101,9 @@ router.get('/admin/cabang', requireAuth, requireRole(['admin']), async (req, res
             title: 'Stok Cabang',
             user: req.user,
             profile: req.profile,
-            cabangSummaries,
+            cabangSummaries: filteredSummaries,
+            areas,
+            selectedArea,
             selectedCabang,
             selectedCabangId,
         });
@@ -98,6 +114,8 @@ router.get('/admin/cabang', requireAuth, requireRole(['admin']), async (req, res
             user: req.user,
             profile: req.profile,
             cabangSummaries: [],
+            areas: [],
+            selectedArea: null,
             selectedCabang: null,
             selectedCabangId: null,
         });

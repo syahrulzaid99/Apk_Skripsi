@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
 import 'cabang_detail_page.dart';
 
 class CabangStockPage extends StatefulWidget {
@@ -45,7 +46,11 @@ class _CabangStockPageState extends State<CabangStockPage> {
     return RefreshIndicator(
       onRefresh: _fetch,
       child: _loading && _shipments.isEmpty
-          ? const Center(child: CircularProgressIndicator())
+          ? ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: 4,
+              itemBuilder: (_, __) => const ShimmerCard(),
+            )
           : Column(children: [
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -60,9 +65,9 @@ class _CabangStockPageState extends State<CabangStockPage> {
                 ]),
               ),
               Expanded(child: _filtered.isEmpty
-                  ? ListView(children: const [SizedBox(height: 80), Center(child: Column(children: [
-                      Icon(Icons.inbox_outlined, size: 64, color: Colors.black26),
-                      SizedBox(height: 12), Text('Belum ada pengiriman', style: TextStyle(color: Colors.black45)),
+                  ? ListView(children: [SizedBox(height: 80), Center(child: Column(children: [
+                      Icon(Icons.inbox_outlined, size: 64, color: cs.outlineVariant),
+                      SizedBox(height: 12), Text('Belum ada pengiriman', style: TextStyle(color: cs.onSurfaceVariant)),
                     ]))])
                   : ListView.builder(padding: const EdgeInsets.symmetric(horizontal: 16), itemCount: _filtered.length, itemBuilder: (_, i) {
                       final s = _filtered[i];

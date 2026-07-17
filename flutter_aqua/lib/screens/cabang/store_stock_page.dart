@@ -7,6 +7,7 @@ class StoreStockPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('Stok Toko')),
       body: stokTersedia.isEmpty
@@ -27,10 +28,10 @@ class StoreStockPage extends StatelessWidget {
                             absolutizeUrl(item['gambar_url']),
                             width: 50, height: 50,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => _placeholderIcon(),
+                            errorBuilder: (_, __, ___) => _placeholderIcon(cs),
                           ),
                         )
-                      : _placeholderIcon(),
+                      : _placeholderIcon(cs),
                   title: Text(item['nama_produk'] ?? '-',
                       style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text('SKU: ${item['sku']}'),
@@ -39,13 +40,13 @@ class StoreStockPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text('${item['stok_tersedia']}',
-                          style: const TextStyle(
+                          style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
-                              color: Colors.green)),
+                              color: cs.tertiary)),
                       Text('${item['satuan']}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.grey)),
+                          style: TextStyle(
+                              fontSize: 12, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 );
@@ -54,15 +55,15 @@ class StoreStockPage extends StatelessWidget {
     );
   }
 
-  Widget _placeholderIcon() {
+  Widget _placeholderIcon(ColorScheme cs) {
     return Container(
       width: 50,
       height: 50,
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Icon(Icons.image_not_supported, color: Colors.grey),
+      child: Icon(Icons.image_not_supported, color: cs.onSurfaceVariant),
     );
   }
 }

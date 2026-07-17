@@ -208,6 +208,29 @@ router.post('/sales/orders', requireAuth, requireRole(['sales']), csrfProtection
     }
 });
 
+// ====================== SALES: LIST CABANG ACCOUNTS (untuk pilih tujuan order) ======================
+router.get('/api/v1/sales/cabangs', requireAuthApi, requireRole(['sales']), async (req, res) => {
+    try {
+        const snap = await db.collection('users').where('role', '==', 'cabang').get();
+        const cabangs = snap.docs.map(d => {
+            const u = d.data();
+            return {
+                id: d.id,
+                username: u.username || d.id,
+                nama_cabang: u.nama_cabang || '',
+                provinsi: u.provinsi || '',
+                kota: u.kota || '',
+                jalan: u.jalan || '',
+            };
+        });
+        cabangs.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+        return res.json({ cabangs });
+    } catch (e) {
+        console.error('[Sales] Gagal memuat daftar cabang:', e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
 // ====================== SALES: API for Flutter ======================
 
 // GET orders for flutter
@@ -224,6 +247,7 @@ router.get('/api/v1/sales/orders', requireAuthApi, requireRole(['sales']), async
             kode_order: o.kode_order,
             cabang_id: o.cabang_id,
             cabang_username: o.cabang_username || usersMap[o.cabang_id]?.username || o.cabang_id,
+            cabang_nama: usersMap[o.cabang_id]?.nama_cabang || '',
             status: o.status || 'pending',
             payment_status: o.payment_status || 'pending',
             total_harga: o.total_harga || 0,
@@ -368,6 +392,72 @@ router.post('/api/v1/sales/orders', requireAuthApi, requireRole(['sales']), expr
         return res.json({ ok: true, kode_order, id, payment_url: doc.payment_url });
     } catch (e) {
         console.error('❌ Sales API create order error:', e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
+// ====================== SALES: RETRY PAYMENT ======================
+router.post('/api/v1/sales/orders/:id/pay', requireAuthApi, requireRole(['sales']), async (req, res) => {
+    try {
+        const id = req.params.id;
+        const docRef = db.collection('orders').doc(id);
+        const docSnap = await docRef.get();
+
+        if (!docSnap.exists) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+
+        const docData = docSnap.data();
+
+        // Sales boleh bayar order yang dia buat atau yang untuk cabangnya
+        if (docData.created_by !== req.user.uid) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+
+        if (docData.status !== 'pending') {
+            return res.status(400).json({ error: 'order_not_pending' });
+        }
+
+        const midtrans_order_id = `${docData.kode_order}-${Date.now()}`;
+        const grossAmount = Math.round(docData.total_harga || 0);
+
+        const parameter = {
+            transaction_details: {
+                order_id: midtrans_order_id,
+                gross_amount: grossAmount,
+            },
+            customer_details: {
+                first_name: req.user.username || 'Sales',
+            },
+            enabled_payments: [
+                'credit_card', 'bca_va', 'bni_va', 'bri_va',
+                'permata_va', 'mandiri_bill',
+                'gopay', 'shopeepay', 'other_qris',
+                'alfamart', 'indomaret',
+            ],
+        };
+
+        console.log('[Midtrans] Sales retry:', midtrans_order_id, 'amount:', grossAmount);
+
+        let transaction;
+        try {
+            transaction = await snap.createTransaction(parameter);
+        } catch (midErr) {
+            console.error('[Midtrans] GAGAL:', midErr?.message || midErr);
+            return res.status(502).json({ error: 'midtrans_failed' });
+        }
+
+        await docRef.update({
+            midtrans_order_id,
+            snap_token: transaction.token,
+            payment_url: transaction.redirect_url,
+            payment_status: 'pending',
+            updatedAt: new Date(),
+        });
+
+        return res.json({ ok: true, payment_url: transaction.redirect_url });
+    } catch (e) {
+        console.error('❌ Sales pay error:', e);
         return res.status(500).json({ error: 'server_error' });
     }
 });

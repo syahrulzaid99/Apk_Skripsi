@@ -457,6 +457,10 @@ router.get(
                 items, // ✅ sudah ada nama_produk & barcode & gambar_url & harga
                 total_harga,
                 bukti_penerimaan_urls: s.bukti_penerimaan_urls || [],
+
+                // 📍 Lokasi saat konfirmasi (jika ada)
+                lokasi_penerimaan: s.lokasi_penerimaan || null,
+                lokasi_penolakan: s.lokasi_penolakan || null,
             });
         } catch (e) {
             console.error(e);
@@ -575,6 +579,51 @@ router.post(
                 }
             }
 
+            // 📍 location_json: { lat, lng, accuracy, address, captured_at }
+            // Validasi akurasi GPS (Geofencing Opsi A):
+            // - koordinat wajib finite
+            // - kalau accuracy > MAX_ACCURACY_M, tolak (lokasi terlalu tidak presisi)
+            // - simpan flag lokasi_terverifikasi
+            const MAX_ACCURACY_M = 100; // toleransi akurasi maksimal
+            let locationData = null;
+            let lokasiTerverifikasi = false;
+            if (req.body.location_json) {
+                try {
+                    locationData = JSON.parse(req.body.location_json);
+                } catch (_) {
+                    return res.status(400).json({ error: 'invalid_location_json' });
+                }
+                if (locationData) {
+                    const lat = Number(locationData.lat);
+                    const lng = Number(locationData.lng);
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return res.status(400).json({ error: 'invalid_location_coords' });
+                    }
+
+                    let accuracy = locationData.accuracy != null
+                        ? Number(locationData.accuracy)
+                        : null;
+                    if (accuracy != null && !Number.isFinite(accuracy)) accuracy = null;
+
+                    if (accuracy != null && accuracy > MAX_ACCURACY_M) {
+                        return res.status(400).json({
+                            error: 'location_accuracy_too_low',
+                            message: `Akurasi lokasi ${Math.round(accuracy)}m melebihi batas ${MAX_ACCURACY_M}m. Pastikan GPS presisi tinggi (di luar ruangan).`,
+                            accuracy: Math.round(accuracy),
+                        });
+                    }
+
+                    lokasiTerverifikasi = accuracy != null && accuracy <= MAX_ACCURACY_M;
+                    locationData.lat = lat;
+                    locationData.lng = lng;
+                    locationData.accuracy = accuracy;
+                    locationData.lokasi_terverifikasi = lokasiTerverifikasi;
+                    if (!locationData.captured_at) {
+                        locationData.captured_at = new Date().toISOString();
+                    }
+                }
+            }
+
             // update data_barang (index-based)
             const curItems = Array.isArray(s.data_barang) ? s.data_barang : [];
             const byIdx = new Map();
@@ -609,7 +658,37 @@ router.post(
                 updateData.bukti_penerimaan_urls = admin.firestore.FieldValue.arrayUnion(...urls);
             }
 
+            // 📍 Simpan snapshot lokasi sesuai aksi
+            if (locationData) {
+                updateData[aksi === 'ditolak' ? 'lokasi_penolakan' : 'lokasi_penerimaan'] = {
+                    ...locationData,
+                    lokasi_terverifikasi: lokasiTerverifikasi,
+                    dikirim_oleh_uid: req.user.uid,
+                };
+            }
+
             await doc.ref.update(updateData);
+
+            // 🔗 Update status order terkait agar sales & cabang melihat status terbaru
+            const poNumber = s.po_number || s.kode_order;
+            if (poNumber) {
+                try {
+                    const orderSnap = await db.collection('orders')
+                        .where('kode_order', '==', poNumber)
+                        .limit(1)
+                        .get();
+                    if (!orderSnap.empty) {
+                        const newOrderStatus = aksi === 'ditolak' ? 'ditolak' : 'diterima';
+                        await orderSnap.docs[0].ref.update({
+                            status: newOrderStatus,
+                            updatedAt: new Date(),
+                        });
+                        console.log(`[Shipment] Order ${poNumber} status → ${newOrderStatus}`);
+                    }
+                } catch (orderErr) {
+                    console.error('[Shipment] Gagal update order status:', orderErr);
+                }
+            }
 
             // LOGIC STOK CABANG / PUSAT
             if (aksi === 'ditolak') {
@@ -652,7 +731,9 @@ router.post(
             return res.json({
                 ok: true,
                 status: aksi,
-                photos_uploaded: urls.length
+                photos_uploaded: urls.length,
+                lokasi_tercatat: !!locationData,
+                lokasi_terverifikasi: lokasiTerverifikasi,
             });
         } catch (e) {
             console.error('❌ Confirm error:', e);
@@ -748,6 +829,8 @@ router.get(
                     tanggal: s.createdAt || s.created_at || s.tanggal_kirim || null,
                     diterima_at: s.diterima_at || null,
                     ditolak_at: s.ditolak_at || null,
+                    lokasi_penerimaan: s.lokasi_penerimaan || null,
+                    lokasi_penolakan: s.lokasi_penolakan || null,
                 };
             });
 
@@ -770,7 +853,7 @@ router.get(
 router.get(
     '/api/v1/cabang/products',
     requireAuthApi,
-    requireRole(['cabang']),
+    requireRole(['cabang', 'sales']),
     async (req, res) => {
         try {
             const snap = await db.collection('products').orderBy('sku').get();
@@ -950,6 +1033,9 @@ router.get(
                     items: o.items || [],
                     keterangan: o.keterangan || '',
                     payment_url: o.payment_url || null,
+                    payment_status: o.payment_status || 'pending',
+                    created_by: o.created_by || null,
+                    created_by_role: o.created_by_role || null,
                     createdAt: o.createdAt || null,
                 };
             });
@@ -986,7 +1072,7 @@ router.post(
 
             const docData = docSnap.data();
 
-            if (docData.cabang_id !== req.user.uid) {
+            if (docData.cabang_id !== req.user.uid && docData.created_by !== req.user.uid) {
                 return res.status(403).json({ error: 'forbidden' });
             }
 

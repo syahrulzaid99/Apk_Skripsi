@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aplikasi memerlukan akses lokasi untuk mencatat titik koordinat saat konfirmasi penerimaan pengiriman.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Aplikasi memerlukan akses lokasi untuk mencatat titik koordinat saat konfirmasi penerimaan pengiriman.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Aplikasi memerlukan akses lokasi untuk mencatat titik koordinat saat konfirmasi penerimaan pengiriman.</string>
 </dict>
 </plist>

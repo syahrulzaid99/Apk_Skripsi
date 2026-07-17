@@ -48,6 +48,7 @@ const cabangStocksRoutes = require('./routes/cabang_stocks.route');
 const midtransWebhookRoutes = require('./routes/midtrans_webhook.route');
 const salesOrdersRoutes = require('./routes/sales_orders.route');
 const gudangOrdersRoutes = require('./routes/gudang_orders.route');
+const adminApiRoutes = require('./routes/admin_api.route');
 
 app.use('/', authRoutes);
 app.use('/', dashRoutes);
@@ -63,6 +64,7 @@ app.use('/', cabangStocksRoutes);
 app.use('/', midtransWebhookRoutes);
 app.use('/', salesOrdersRoutes);
 app.use('/', gudangOrdersRoutes);
+app.use('/', adminApiRoutes);
 
 app.get('/', (req, res) => res.redirect('/dashboard'));
 

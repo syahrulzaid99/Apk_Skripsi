@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
 import '../../config/api_config.dart';
 
 class CabangOrderPage extends StatefulWidget {
@@ -122,7 +123,14 @@ class _CreateOrderTabState extends State<_CreateOrderTab> with AutomaticKeepAliv
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    if (_loading && _products.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _products.isEmpty) return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: 5,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: ShimmerBox(width: double.infinity, height: 76, borderRadius: BorderRadius.circular(12)),
+      ),
+    );
 
     return Column(children: [
       Padding(
@@ -158,10 +166,10 @@ class _CreateOrderTabState extends State<_CreateOrderTab> with AutomaticKeepAliv
               ProductThumb(url: img),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(nama, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
-                if (p['sku'] != null) Text('SKU: ${p['sku']}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(nama, style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: cs.onSurface)),
+                if (p['sku'] != null) Text('SKU: ${p['sku']}', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
                 Text('${formatCurrency(harga)} / ${p['satuan'] ?? ''}', style: TextStyle(fontSize: 12, color: cs.primary)),
-                Text('Stok: $stok', style: TextStyle(fontSize: 12, color: stok <= 0 ? Colors.red : Colors.black45)),
+                Text('Stok: $stok', style: TextStyle(fontSize: 12, color: stok <= 0 ? cs.error : cs.onSurfaceVariant)),
               ])),
               Row(mainAxisSize: MainAxisSize.min, children: [
                 if (qty > 0) IconButton(icon: Icon(Icons.remove_circle, color: cs.error), onPressed: () => setState(() {
@@ -210,6 +218,7 @@ class _OrderHistoryTab extends StatefulWidget {
 class _OrderHistoryTabState extends State<_OrderHistoryTab> with AutomaticKeepAliveClientMixin {
   List<Map<String, dynamic>> _orders = [];
   bool _loading = false;
+  String? _payingId;
 
   @override
   bool get wantKeepAlive => true;
@@ -256,18 +265,55 @@ class _OrderHistoryTabState extends State<_OrderHistoryTab> with AutomaticKeepAl
     }
   }
 
+  bool _isUnpaid(Map<String, dynamic> o) {
+    final ps = (o['payment_status'] ?? 'pending').toString().toLowerCase();
+    final st = (o['status'] ?? 'pending').toString().toLowerCase();
+    return st == 'pending' && ps != 'settlement' && ps != 'capture';
+  }
+
+  Future<void> _retryPay(Map<String, dynamic> o) async {
+    final id = o['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+    setState(() => _payingId = id);
+    try {
+      final res = await ApiClient.payOrder(id);
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body);
+        final url = body['payment_url']?.toString();
+        if (url != null && url.isNotEmpty && mounted) {
+          await Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => PaymentWebViewPage(paymentUrl: url, orderId: id),
+          ));
+          _fetch();
+        } else {
+          _snack('Tidak ada payment URL');
+        }
+      } else {
+        _snack('Gagal memuat pembayaran (${res.statusCode})');
+      }
+    } catch (e) {
+      _snack('Error: $e');
+    } finally {
+      if (mounted) setState(() => _payingId = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    if (_loading && _orders.isEmpty) return const Center(child: CircularProgressIndicator());
+    if (_loading && _orders.isEmpty) return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 4,
+      itemBuilder: (_, __) => const ShimmerCard(),
+    );
 
     return RefreshIndicator(
       onRefresh: _fetch,
       child: _orders.isEmpty
-          ? ListView(children: const [SizedBox(height: 80), Center(child: Column(children: [
-              Icon(Icons.receipt_long_outlined, size: 64, color: Colors.black26),
-              SizedBox(height: 12), Text('Belum ada order', style: TextStyle(color: Colors.black45)),
+          ? ListView(children: [SizedBox(height: 80), Center(child: Column(children: [
+              Icon(Icons.receipt_long_outlined, size: 64, color: cs.outlineVariant),
+              SizedBox(height: 12), Text('Belum ada order', style: TextStyle(color: cs.onSurfaceVariant)),
             ]))])
           : ListView.builder(padding: const EdgeInsets.all(16), itemCount: _orders.length, itemBuilder: (_, i) {
               final o = _orders[i];
@@ -276,6 +322,8 @@ class _OrderHistoryTabState extends State<_OrderHistoryTab> with AutomaticKeepAl
               final total = o['total_harga'] ?? 0;
               final items = (o['items'] as List? ?? []);
               final ket = o['keterangan'] ?? '';
+              final id = o['id']?.toString() ?? '';
+              final unpaid = _isUnpaid(o);
 
               return Card(margin: const EdgeInsets.only(bottom: 10), child: ExpansionTile(
                 title: Text(kode, style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15)),
@@ -295,7 +343,7 @@ class _OrderHistoryTabState extends State<_OrderHistoryTab> with AutomaticKeepAl
                 childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                 children: [
                   if (ket.isNotEmpty) Padding(padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(children: [const Icon(Icons.note_alt, size: 16, color: Colors.black45), const SizedBox(width: 6), Expanded(child: Text(ket))])),
+                    child: Row(children: [Icon(Icons.note_alt, size: 16, color: cs.onSurfaceVariant), const SizedBox(width: 6), Expanded(child: Text(ket))])),
                   ...items.map((it) {
                     final item = Map<String, dynamic>.from(it as Map);
                     return Padding(padding: const EdgeInsets.symmetric(vertical: 3),
@@ -306,6 +354,20 @@ class _OrderHistoryTabState extends State<_OrderHistoryTab> with AutomaticKeepAl
                         SizedBox(width: 90, child: Text(formatCurrency(item['subtotal'] ?? 0), textAlign: TextAlign.end, style: const TextStyle(fontSize: 13))),
                       ]));
                   }),
+                  if (unpaid)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Align(
+                        alignment: Alignment.centerRight,
+                        child: _payingId == id
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : FilledButton.icon(
+                                onPressed: () => _retryPay(o),
+                                icon: const Icon(Icons.payment),
+                                label: const Text('Bayar'),
+                              ),
+                      ),
+                    ),
                 ],
               ));
             }),

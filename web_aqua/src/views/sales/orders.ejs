@@ -2,14 +2,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
         .container-fluid { font-family: 'Inter', sans-serif; }
-        .aesthetic-card { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.02) !important; background: #fff; overflow: hidden; }
-        .aesthetic-header { background: rgba(248,249,252,0.8) !important; backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.03) !important; padding: 1.5rem !important; }
+        .aesthetic-card { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.02) !important; background: var(--card-bg); overflow: hidden; }
+        .aesthetic-header { background: var(--header-bg) !important; backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color) !important; padding: 1.5rem !important; }
         .pill-badge { padding: 0.5em 1.2em !important; border-radius: 50rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.75em !important; color: white !important; }
         .badge-pending { background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%); }
         .badge-dikirim { background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%); }
         .badge-diterima { background: linear-gradient(135deg, #4e73df 0%, #224abe 100%); }
         .badge-rejected { background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%); }
-        .kode-highlight { color: #4e73df; background: #eaecfb; padding: 4px 10px; border-radius: 6px; font-weight: 800; }
+        .kode-highlight { color: var(--primary-text); background: var(--primary-bg-soft); padding: 4px 10px; border-radius: 6px; font-weight: 800; }
         .btn-create { background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%); color: #fff; box-shadow: 0 4px 12px rgba(28,200,138,0.3); }
         .btn-create:hover { transform: translateY(-2px); color: #fff; }
     </style>

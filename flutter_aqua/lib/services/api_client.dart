@@ -63,6 +63,7 @@ class ApiClient {
     required String keterangan,
     required List<Map<String, dynamic>> items,
     required List<XFile> photos,
+    Map<String, dynamic>? location, // { lat, lng, accuracy, address, captured_at }
   }) async {
     final headers = await _authHeaders();
     final req = http.MultipartRequest(
@@ -74,6 +75,9 @@ class ApiClient {
     req.fields['aksi'] = aksi;
     req.fields['keterangan'] = keterangan;
     req.fields['items_json'] = jsonEncode(items);
+    if (location != null) {
+      req.fields['location_json'] = jsonEncode(location);
+    }
     for (final ph in photos) {
       final bytes = await ph.readAsBytes();
       req.files.add(http.MultipartFile.fromBytes(
@@ -210,6 +214,14 @@ class ApiClient {
         .timeout(_timeout);
   }
 
+  /// Sales: daftar akun cabang untuk dipilih sebagai tujuan order.
+  static Future<http.Response> getCabangAccounts() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/sales/cabangs'), headers: headers)
+        .timeout(_timeout);
+  }
+
   /// Sales: buat order untuk cabang (wajib pilih cabang_id)
   static Future<http.Response> createSalesOrder({
     required List<Map<String, dynamic>> items,
@@ -231,6 +243,25 @@ class ApiClient {
         .timeout(_timeout);
   }
 
+
+  /// Sales: ambil daftar akun cabang untuk dropdown tujuan order
+  static Future<http.Response> getSalesCabangs() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/sales/cabangs'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  /// Sales: bayar / retry payment order
+  static Future<http.Response> salesPayOrder(String id) async {
+    final headers = await _authHeaders();
+    return http
+        .post(
+            ApiConfig.uri(
+                '/api/v1/sales/orders/${Uri.encodeComponent(id)}/pay'),
+            headers: headers)
+        .timeout(_timeout);
+  }
 
   // ======================== GUDANG API ========================
 
@@ -263,6 +294,107 @@ class ApiClient {
               '/api/v1/gudang/orders/${Uri.encodeComponent(id)}/send'),
           headers: headers,
         )
+        .timeout(_timeout);
+  }
+
+  /// Gudang: ambil riwayat pengiriman (shipments)
+  static Future<http.Response> getGudangShipments() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/gudang/shipments'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  // ======================== ADMIN API ========================
+
+  static Future<http.Response> getAdminDashboard() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/admin/dashboard'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> getAdminOrders() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/admin/orders'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> adminApproveOrder(String id, {String keterangan = ''}) async {
+    final headers = await _authHeaders();
+    headers['Content-Type'] = 'application/json';
+    return http
+        .post(
+          ApiConfig.uri('/api/v1/admin/orders/${Uri.encodeComponent(id)}/approve'),
+          headers: headers,
+          body: jsonEncode({'keterangan': keterangan}),
+        )
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> adminDeleteOrder(String id) async {
+    final headers = await _authHeaders();
+    return http
+        .delete(
+          ApiConfig.uri('/api/v1/admin/orders/${Uri.encodeComponent(id)}'),
+          headers: headers,
+        )
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> getAdminProducts() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/admin/products'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> getAdminUsers() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/admin/users'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> adminCreateUser(Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    headers['Content-Type'] = 'application/json';
+    return http
+        .post(
+          ApiConfig.uri('/api/v1/admin/users'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> adminUpdateUser(String id, Map<String, dynamic> data) async {
+    final headers = await _authHeaders();
+    headers['Content-Type'] = 'application/json';
+    return http
+        .put(
+          ApiConfig.uri('/api/v1/admin/users/${Uri.encodeComponent(id)}'),
+          headers: headers,
+          body: jsonEncode(data),
+        )
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> adminDeleteUser(String id) async {
+    final headers = await _authHeaders();
+    return http
+        .delete(
+          ApiConfig.uri('/api/v1/admin/users/${Uri.encodeComponent(id)}'),
+          headers: headers,
+        )
+        .timeout(_timeout);
+  }
+
+  static Future<http.Response> getAdminShipments() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/admin/shipments'), headers: headers)
         .timeout(_timeout);
   }
 }

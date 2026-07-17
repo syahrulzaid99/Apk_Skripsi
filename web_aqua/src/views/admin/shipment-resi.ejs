@@ -60,6 +60,26 @@
                                         <% } %>
         </p>
 
+        <%# ===== Tracking Lokasi (jika sudah dikonfirmasi) ===== %>
+            <% var resiLoc=null; var resiStatus=(shipment.status || '' ).toLowerCase(); if (resiStatus==='diterima' &&
+                shipment.lokasi_penerimaan) { resiLoc=shipment.lokasi_penerimaan; } else if (resiStatus==='ditolak' &&
+                shipment.lokasi_penolakan) { resiLoc=shipment.lokasi_penolakan; } %>
+                <% if (resiLoc && resiLoc.lat !=null && resiLoc.lng !=null) { %>
+                    <p style="margin-top: 8px; padding: 6px; border: 1px dashed #000;">
+                        <strong>📍 Lokasi <%= resiStatus==='diterima' ? 'Penerimaan' : 'Penolakan' %>:</strong><br>
+                        <%= resiLoc.lat %>, <%= resiLoc.lng %><br>
+                        <% if (resiLoc.accuracy !=null) { %>
+                            Akurasi: ±<%= Number(resiLoc.accuracy).toFixed(0) %> m<br>
+                            <% } %>
+                                <% if (resiLoc.captured_at) { %>
+                                    <%= resiLoc.captured_at %><br>
+                                    <% } %>
+                                        <% if (resiLoc.address) { %>
+                                            <%= resiLoc.address %>
+                                                <% } %>
+                    </p>
+                    <% } %>
+
         <!-- Barcode dari kode_pengiriman -->
         <svg id="barcode"></svg>
 

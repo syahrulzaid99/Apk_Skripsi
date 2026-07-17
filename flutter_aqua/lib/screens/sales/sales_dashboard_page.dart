@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
+import '../../widgets/smooth_list_item.dart';
 
 class SalesDashboardPage extends StatefulWidget {
   const SalesDashboardPage({super.key});
@@ -30,7 +31,18 @@ class _SalesDashboardPageState extends State<SalesDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_loading) return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ShimmerBox(width: double.infinity, height: 100, borderRadius: BorderRadius.circular(12)),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: ShimmerBox(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12))),
+          const SizedBox(width: 12),
+          Expanded(child: ShimmerBox(width: double.infinity, height: 80, borderRadius: BorderRadius.circular(12))),
+        ]),
+      ],
+    );
     final cs = Theme.of(context).colorScheme;
     final pending = _stats?['pending'] ?? 0;
     final inProcess = _stats?['approved'] ?? 0;

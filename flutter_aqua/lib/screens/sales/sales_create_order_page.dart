@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
 import '../cabang/cabang_order_page.dart'; // PaymentWebViewPage
 
 class SalesCreateOrderPage extends StatefulWidget {
@@ -57,24 +58,17 @@ class _SalesCreateOrderPageState extends State<SalesCreateOrderPage>
 
   Future<void> _fetchCabangs() async {
     try {
-      // Ambil daftar cabang dari orders yang sudah ada
-      final res = await ApiClient.getSalesOrders();
+      final res = await ApiClient.getCabangAccounts();
       if (res.statusCode == 200) {
-        final orders = (jsonDecode(res.body)['orders'] as List? ?? [])
+        final list = (jsonDecode(res.body)['cabangs'] as List? ?? [])
             .cast<Map<String, dynamic>>();
-        final seen = <String>{};
-        final list = <Map<String, dynamic>>[];
-        for (final o in orders) {
-          final cid = o['cabang_id']?.toString();
-          if (cid != null && cid.isNotEmpty && !seen.contains(cid)) {
-            seen.add(cid);
-            list
-                .add({'id': cid, 'username': o['cabang_username'] ?? cid});
-          }
-        }
-        setState(() => _cabangs = list);
+        if (mounted) setState(() => _cabangs = list);
+      } else {
+        _snack('Gagal memuat cabang (${res.statusCode})');
       }
-    } catch (_) {}
+    } catch (e) {
+      _snack('Error cabang: $e');
+    }
   }
 
   List<Map<String, dynamic>> get _filtered {
@@ -167,7 +161,11 @@ class _SalesCreateOrderPageState extends State<SalesCreateOrderPage>
               items: _cabangs
                   .map((c) => DropdownMenuItem(
                         value: c['id']?.toString() ?? '',
-                        child: Text(c['username']?.toString() ?? '-'),
+                        child: Text(
+                          (c['nama_cabang']?.toString().isNotEmpty == true
+                              ? c['nama_cabang']
+                              : c['username'])?.toString() ?? '-',
+                        ),
                       ))
                   .toList(),
               onChanged: (v) =>
@@ -201,7 +199,14 @@ class _SalesCreateOrderPageState extends State<SalesCreateOrderPage>
       // Product list
       Expanded(
         child: _loading && _products.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: 5,
+                itemBuilder: (_, __) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: ShimmerBox(width: double.infinity, height: 76, borderRadius: BorderRadius.circular(12)),
+                ),
+              )
             : ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 itemCount: _filtered.length + 1,
@@ -213,7 +218,7 @@ class _SalesCreateOrderPageState extends State<SalesCreateOrderPage>
                   final qty = _cart[id] ?? 0;
                   final stok = p['stok'] ?? 0;
 
-                  return Card(
+                  return SmoothListItem(index: i, child: Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: Padding(
                       padding: const EdgeInsets.all(10),
@@ -276,7 +281,7 @@ class _SalesCreateOrderPageState extends State<SalesCreateOrderPage>
                         ]),
                       ]),
                     ),
-                  );
+                  ));
                 }),
       ),
       // Bottom bar
