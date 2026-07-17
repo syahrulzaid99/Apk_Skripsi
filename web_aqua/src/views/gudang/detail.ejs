@@ -1,128 +1,136 @@
-<div class="container-fluid">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        .container-fluid { font-family: 'Inter', sans-serif; }
-        .aesthetic-card { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.02) !important; background: var(--card-bg); overflow: hidden; }
-        .kode-highlight { color: var(--primary-text); background: var(--primary-bg-soft); padding: 4px 10px; border-radius: 6px; font-weight: 800; }
-    </style>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128203;</span>Detail Pesanan
+    </h1>
+    <a href="/gudang/orders" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left" style="margin-right:0.375rem;"></i> Kembali</a>
+</div>
 
-    <div class="d-sm-flex align-items-center justify-content-between mb-4 mt-2">
-        <h1 class="h3 mb-0 page-title">Detail Pesanan</h1>
-        <a href="/gudang/orders" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-arrow-left mr-1"></i> Kembali
-        </a>
+<style>
+    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
+    .oct-card-body { padding: 1.25rem 1.5rem; }
+    .oct-card-header-bar { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.9375rem; color: var(--oct-text); }
+    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
+    .oct-table { border-collapse: separate; border-spacing: 0; }
+    .oct-table thead th { border-bottom: 2px solid var(--oct-border); background: var(--oct-bg); color: var(--oct-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.06em; padding: 0.75rem 0.625rem; }
+    .oct-table td { border-top: 1px solid var(--oct-border-light); padding: 0.625rem; vertical-align: middle; font-size: 0.875rem; }
+    .oct-table tbody tr:hover { background: var(--oct-card-hover); }
+    .oct-info-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.875rem; margin-bottom: 1.25rem; }
+    .oct-info-field { padding: 0.75rem 1rem; background: var(--oct-bg); border-radius: 12px; border: 1px solid var(--oct-border-light); }
+    .oct-info-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-primary); margin-bottom: 0.25rem; }
+    .oct-info-value { font-size: 0.9375rem; font-weight: 500; color: var(--oct-text); }
+    .oct-btn-pack { background: var(--oct-yellow); color: #1E293B; border: none; border-radius: 10px; padding: 0.625rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+    .oct-btn-pack:hover { transform: translateY(-1px); }
+    .oct-btn-send { background: var(--oct-green-dark); color: #fff; border: none; border-radius: 10px; padding: 0.625rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+    .oct-btn-send:hover { transform: translateY(-1px); }
+</style>
+
+<% if (!order) { %>
+    <div class="alert alert-danger">Pesanan tidak ditemukan.</div>
+    <% return; %>
+<% } %>
+
+<!-- Order Info -->
+<div class="oct-card">
+    <div class="oct-card-body">
+        <div class="oct-info-row">
+            <div class="oct-info-field">
+                <div class="oct-info-label">Kode Order</div>
+                <div class="oct-info-value"><span class="oct-kode"><%= order.kode_order %></span></div>
+            </div>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Status</div>
+                <div class="oct-info-value" style="text-transform:capitalize;"><%= order.status %></div>
+            </div>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Cabang</div>
+                <div class="oct-info-value"><%= cabangInfo ? (cabangInfo.nama_cabang || cabangInfo.username) : order.cabang_id %></div>
+            </div>
+            <% if (cabangInfo) { %>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Alamat</div>
+                <div class="oct-info-value"><%= [cabangInfo.jalan, cabangInfo.kota, cabangInfo.provinsi].filter(Boolean).join(', ') || '-' %></div>
+            </div>
+            <% } %>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Total</div>
+                <div class="oct-info-value" style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.25rem; color:var(--oct-green-dark);">Rp <%= (order.total_harga || 0).toLocaleString('id-ID') %></div>
+            </div>
+        </div>
+        <% if (order.keterangan || order.catatan_packing) { %>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.875rem;">
+            <% if (order.keterangan) { %>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Keterangan</div>
+                <div class="oct-info-value"><%= order.keterangan %></div>
+            </div>
+            <% } %>
+            <% if (order.catatan_packing) { %>
+            <div class="oct-info-field">
+                <div class="oct-info-label">Catatan Packing</div>
+                <div class="oct-info-value"><%= order.catatan_packing %></div>
+            </div>
+            <% } %>
+        </div>
+        <% } %>
     </div>
+</div>
 
-    <% if (!order) { %>
-        <div class="alert alert-danger">Pesanan tidak ditemukan.</div>
-        <% return; %>
-    <% } %>
-
-    <div class="card aesthetic-card mb-4">
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5>Informasi Pesanan</h5>
-                    <table class="table table-sm">
-                        <tr><th>Kode Order</th><td><span class="kode-highlight"><%= order.kode_order %></span></td></tr>
-                        <tr><th>Status</th><td><%= order.status %></td></tr>
-                        <tr><th>Cabang</th><td><%= cabangInfo ? (cabangInfo.nama_cabang || cabangInfo.username) : order.cabang_id %></td></tr>
-                        <% if (cabangInfo) { %>
-                        <tr><th>Alamat</th><td><%= [cabangInfo.jalan, cabangInfo.kota, cabangInfo.provinsi].filter(Boolean).join(', ') || '-' %></td></tr>
-                        <% } %>
-                        <tr><th>Total</th><td><strong>Rp <%= (order.total_harga || 0).toLocaleString('id-ID') %></strong></td></tr>
-                    </table>
-                </div>
-                <div class="col-md-6">
-                    <h5>Keterangan</h5>
-                    <p><%= order.keterangan || '-' %></p>
-                    <% if (order.catatan_packing) { %>
-                        <p><strong>Catatan Packing:</strong> <%= order.catatan_packing %></p>
+<!-- Items -->
+<div class="oct-card">
+    <div class="oct-card-header-bar"><i class="fas fa-boxes-stacked" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Daftar Barang</div>
+    <div class="oct-card-body" style="padding:0;">
+        <div class="table-responsive">
+            <table class="table oct-table w-100 mb-0">
+                <thead><tr>
+                    <th style="width:48px;">#</th><th>SKU</th><th>Nama Produk</th><th>Satuan</th>
+                    <th class="text-right" style="width:80px;">Qty</th>
+                    <th class="text-right" style="width:120px;">Harga</th>
+                    <th class="text-right" style="width:130px;">Subtotal</th>
+                </tr></thead>
+                <tbody>
+                    <% var items = Array.isArray(order.items) ? order.items : []; for (var i = 0; i < items.length; i++) { var it = items[i]; var sub = Number(it.subtotal || it.qty * it.harga || 0); %>
+                    <tr>
+                        <td><%= i + 1 %></td><td><%= it.sku || '-' %></td><td><%= it.nama_produk || '-' %></td><td><%= it.satuan || '-' %></td>
+                        <td class="text-right font-weight-bold"><%= it.qty %></td>
+                        <td class="text-right">Rp <%= Number(it.harga || 0).toLocaleString('id-ID') %></td>
+                        <td class="text-right" style="color:var(--oct-primary); font-weight:600;">Rp <%= sub.toLocaleString('id-ID') %></td>
+                    </tr>
                     <% } %>
-                </div>
-            </div>
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <!-- Items -->
-    <div class="card aesthetic-card mb-4">
-        <div class="card-header"><h5 class="mb-0">Daftar Barang</h5></div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-bordered mb-0">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>#</th>
-                            <th>SKU</th>
-                            <th>Nama Produk</th>
-                            <th>Satuan</th>
-                            <th class="text-right">Qty</th>
-                            <th class="text-right">Harga</th>
-                            <th class="text-right">Subtotal</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <% var items = Array.isArray(order.items) ? order.items : [];
-                           for (var i = 0; i < items.length; i++) {
-                               var it = items[i];
-                               var sub = Number(it.subtotal || it.qty * it.harga || 0);
-                        %>
-                        <tr>
-                            <td><%= i + 1 %></td>
-                            <td><%= it.sku || '-' %></td>
-                            <td><%= it.nama_produk || '-' %></td>
-                            <td><%= it.satuan || '-' %></td>
-                            <td class="text-right font-weight-bold"><%= it.qty %></td>
-                            <td class="text-right">Rp <%= Number(it.harga || 0).toLocaleString('id-ID') %></td>
-                            <td class="text-right">Rp <%= sub.toLocaleString('id-ID') %></td>
-                        </tr>
-                        <% } %>
-                    </tbody>
-                </table>
+<!-- History -->
+<% if (Array.isArray(order.history) && order.history.length > 0) { %>
+<div class="oct-card">
+    <div class="oct-card-header-bar"><i class="fas fa-clock-rotate-left" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Riwayat Status</div>
+    <div class="oct-card-body">
+        <% order.history.forEach(function(h) { %>
+        <div style="padding:0.625rem 0; border-bottom:1px solid var(--oct-border-light);">
+            <div class="d-flex justify-content-between">
+                <strong style="color:var(--oct-text); text-transform:capitalize;"><%= h.status %></strong>
+                <span style="color:var(--oct-text-muted); font-size:0.8125rem;"><%= h.at ? new Date(h.at._seconds ? h.at._seconds * 1000 : h.at).toLocaleString('id-ID') : '-' %></span>
             </div>
+            <div style="color:var(--oct-text-muted); font-size:0.8125rem;">oleh: <%= h.by_username || h.by %></div>
+            <% if (h.note) { %><div style="color:var(--oct-text-muted); font-size:0.8125rem; margin-top:0.25rem;"><%= h.note %></div><% } %>
         </div>
+        <% }); %>
     </div>
+</div>
+<% } %>
 
-    <!-- History -->
-    <% if (Array.isArray(order.history) && order.history.length > 0) { %>
-    <div class="card aesthetic-card mb-4">
-        <div class="card-header"><h5 class="mb-0">Riwayat Status</h5></div>
-        <div class="card-body">
-            <ul class="list-unstyled mb-0">
-                <% order.history.forEach(function(h) { %>
-                <li class="mb-2 pb-2 border-bottom">
-                    <div class="d-flex justify-content-between">
-                        <strong><%= h.status %></strong>
-                        <small class="text-muted">
-                            <%= h.at ? new Date(h.at._seconds ? h.at._seconds * 1000 : h.at).toLocaleString('id-ID') : '-' %>
-                        </small>
-                    </div>
-                    <small>oleh: <%= h.by_username || h.by %></small>
-                    <% if (h.note) { %><br><small class="text-muted"><%= h.note %></small><% } %>
-                </li>
-                <% }); %>
-            </ul>
-        </div>
-    </div>
+<!-- Actions -->
+<div class="d-flex" style="gap:0.75rem; margin-bottom:1.5rem;">
+    <% var st = (order.status || '').toLowerCase(); %>
+    <% if (st === 'approved_admin') { %>
+        <button class="oct-btn-pack" onclick="packOrder('<%= order.id %>')"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
     <% } %>
-
-    <!-- Actions -->
-    <div class="d-flex mb-4" style="gap:12px;">
-        <% var st = (order.status || '').toLowerCase(); %>
-        <% if (st === 'approved_admin') { %>
-        <button class="btn btn-warning px-4" onclick="packOrder('<%= order.id %>')">
-            <i class="fas fa-box mr-1"></i> Tandai Dikemas
-        </button>
-        <% } %>
-        <% if (st === 'dipaket') { %>
-        <button class="btn btn-success px-4" onclick="sendOrder('<%= order.id %>')">
-            <i class="fas fa-truck mr-1"></i> Kirim Barang
-        </button>
-        <% } %>
-        <a href="/gudang/orders" class="btn btn-outline-secondary px-4">
-            <i class="fas fa-arrow-left mr-1"></i> Kembali
-        </a>
-    </div>
+    <% if (st === 'dipaket') { %>
+        <button class="oct-btn-send" onclick="sendOrder('<%= order.id %>')"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Kirim Barang</button>
+    <% } %>
+    <a href="/gudang/orders" class="btn btn-outline-secondary"><i class="fas fa-arrow-left" style="margin-right:0.375rem;"></i> Kembali</a>
 </div>
 
 <!-- Pack Modal -->
@@ -130,19 +138,13 @@
     <div class="modal-dialog" role="document">
         <form id="formPack" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Tandai Dikemas</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Tandai Dikemas</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Catatan Packing (opsional)</label>
-                    <textarea name="catatan_packing" class="form-control" rows="3"></textarea>
-                </div>
+                <div class="form-group"><label style="font-weight:600;">Catatan Packing (opsional)</label><textarea name="catatan_packing" class="form-control" rows="3"></textarea></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="btn btn-warning" type="submit"><i class="fas fa-box mr-1"></i> Tandai Dikemas</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="oct-btn-pack" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
             </div>
         </form>
     </div>
@@ -153,34 +155,19 @@
     <div class="modal-dialog" role="document">
         <form id="formSend" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Kirim Barang</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Kirim Barang</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
-                <div class="alert alert-info">
-                    <i class="fas fa-info-circle mr-2"></i>
-                    Resi pengiriman akan dibuat otomatis. Barang akan dikirim ke cabang.
-                </div>
+                <div class="alert alert-info"><i class="fas fa-info-circle" style="margin-right:0.375rem;"></i> Resi pengiriman akan dibuat otomatis. Barang akan dikirim ke cabang.</div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="btn btn-success" type="submit"><i class="fas fa-truck mr-1"></i> Ya, Kirim</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="oct-btn-send" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Ya, Kirim</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    function packOrder(id) {
-        var form = document.getElementById('formPack');
-        form.action = '/gudang/orders/' + id + '/pack';
-        form.querySelector('textarea').value = '';
-        $('#modalPack').modal('show');
-    }
-    function sendOrder(id) {
-        var form = document.getElementById('formSend');
-        form.action = '/gudang/orders/' + id + '/send';
-        $('#modalSend').modal('show');
-    }
+    function packOrder(id) { var form = document.getElementById('formPack'); form.action = '/gudang/orders/' + id + '/pack'; form.querySelector('textarea').value = ''; $('#modalPack').modal('show'); }
+    function sendOrder(id) { var form = document.getElementById('formSend'); form.action = '/gudang/orders/' + id + '/send'; $('#modalSend').modal('show'); }
 </script>

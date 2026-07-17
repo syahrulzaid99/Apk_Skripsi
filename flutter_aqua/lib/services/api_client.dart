@@ -207,6 +207,22 @@ class ApiClient {
 
   // ======================== SALES API ========================
 
+  /// Cabang: ambil laporan penjualan cabang
+  static Future<http.Response> getCabangSalesReport() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/cabang/sales/report'), headers: headers)
+        .timeout(_timeout);
+  }
+
+  /// Sales: ambil laporan penjualan sales (orders yang dibuat sales)
+  static Future<http.Response> getSalesReport() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/sales/report'), headers: headers)
+        .timeout(_timeout);
+  }
+
   static Future<http.Response> getSalesOrders() async {
     final headers = await _authHeaders();
     return http

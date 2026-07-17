@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart' show isConnectionError, showChangeServerDialog;
 import '../settings/settings_page.dart';
+import 'cabang_sales_report_page.dart';
 
 class CabangProfilePage extends StatefulWidget {
   const CabangProfilePage({super.key});
@@ -137,6 +138,16 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
           },
           icon: const Icon(Icons.edit),
           label: const Text('Edit Profil')),
+      const SizedBox(height: 12),
+      OutlinedButton.icon(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const CabangSalesReportPage()),
+          );
+        },
+        icon: const Icon(Icons.assessment),
+        label: const Text('Laporan Penjualan & Pembelian'),
+      ),
       const SizedBox(height: 12),
       OutlinedButton.icon(
         onPressed: () async {

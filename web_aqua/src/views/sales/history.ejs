@@ -1,80 +1,57 @@
-<div class="container-fluid">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        .container-fluid { font-family: 'Inter', sans-serif; }
-        .aesthetic-card { border: none; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.04),0 1px 3px rgba(0,0,0,0.02) !important; background: var(--card-bg); overflow: hidden; }
-        .aesthetic-header { background: var(--header-bg) !important; backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-color) !important; padding: 1.5rem !important; }
-        .pill-badge { padding: 0.5em 1.2em !important; border-radius: 50rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; font-size: 0.75em !important; color: white !important; }
-        .badge-approved_sales { background: linear-gradient(135deg, #36b9cc 0%, #258391 100%); }
-        .badge-rejected { background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%); }
-        .kode-highlight { color: var(--primary-text); background: var(--primary-bg-soft); padding: 4px 10px; border-radius: 6px; font-weight: 800; }
-    </style>
-
-    <div class="d-sm-flex align-items-center justify-content-between mb-4 mt-2">
-        <h1 class="h3 mb-0 page-title">Riwayat Approval</h1>
-    </div>
-
-    <% var list = Array.isArray(orders) ? orders : []; %>
-
-    <% if (list.length === 0) { %>
-        <div class="card aesthetic-card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-history fa-3x text-gray-300 mb-3"></i>
-                <p class="mb-0 text-muted">Belum ada riwayat approval.</p>
-            </div>
-        </div>
-    <% } %>
-
-    <% for (var si = 0; si < list.length; si++) { %>
-        <%
-            var o = list[si];
-            var st = (o.status || '').toLowerCase();
-            var cabang = (usersMap && usersMap[o.cabang_id]) ? usersMap[o.cabang_id] : null;
-            var badgeClass = st === 'approved_sales' ? 'pill-badge badge-approved_sales' : 'pill-badge badge-rejected';
-        %>
-
-        <div class="card aesthetic-card mb-3">
-            <div class="card-header aesthetic-header d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="font-weight-bold">
-                        <span class="kode-highlight"><%= o.kode_order %></span>
-                    </div>
-                    <small class="text-muted">
-                        Cabang: <strong><%= cabang ? cabang.username : o.cabang_id %></strong>
-                    </small>
-                </div>
-                <span class="<%= badgeClass %>"><%= st === 'approved_sales' ? 'DISETUJUI' : 'DITOLAK' %></span>
-            </div>
-            <div class="card-body px-4 py-3">
-                <div class="row">
-                    <div class="col-md-6">
-                        <small class="text-muted">Total: <strong>Rp <%= (o.total_harga || 0).toLocaleString('id-ID') %></strong></small>
-                    </div>
-                    <div class="col-md-6 text-md-right">
-                        <small class="text-muted"><%= (o.items || []).length %> item</small>
-                    </div>
-                </div>
-                <% if (o.rejection_reason) { %>
-                <div class="mt-2 p-2 bg-light rounded">
-                    <small><strong>Alasan Ditolak:</strong> <%= o.rejection_reason %></small>
-                </div>
-                <% } %>
-            </div>
-        </div>
-    <% } %>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128337;</span>Riwayat Approval
+    </h1>
 </div>
+
+<style>
+    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1rem; }
+    .oct-card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; }
+    .oct-card-body { padding: 1rem 1.25rem; }
+    .oct-pill { padding: 0.375em 1em; border-radius: 50rem; font-weight: 700; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: inline-block; }
+    .oct-pill-approved_sales { background: #06B6D4; }
+    .oct-pill-rejected { background: var(--oct-red); }
+    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
+</style>
+
+<% var list = Array.isArray(orders) ? orders : []; %>
+
+<% if (list.length === 0) { %>
+    <div class="oct-card"><div class="oct-card-body text-center" style="padding:3rem;">
+        <i class="fas fa-history" style="font-size:2.5rem; color:var(--oct-text-muted); opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+        <span style="color:var(--oct-text-muted);">Belum ada riwayat approval.</span>
+    </div></div>
+<% } %>
+
+<% for (var si = 0; si < list.length; si++) { %>
+    <% var o = list[si]; var st = (o.status || '').toLowerCase(); var cabang = (usersMap && usersMap[o.cabang_id]) ? usersMap[o.cabang_id] : null; %>
+    <div class="oct-card">
+        <div class="oct-card-header">
+            <div>
+                <div style="font-weight:700; margin-bottom:0.25rem;"><span class="oct-kode"><%= o.kode_order %></span></div>
+                <span style="color:var(--oct-text-muted); font-size:0.8125rem;">Cabang: <strong style="color:var(--oct-text);"><%= cabang ? cabang.username : o.cabang_id %></strong></span>
+            </div>
+            <span class="oct-pill oct-pill-<%= st %>"><%= st === 'approved_sales' ? 'DISETUJUI' : 'DITOLAK' %></span>
+        </div>
+        <div class="oct-card-body">
+            <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.5rem; font-size:0.875rem;">
+                <div>Total: <strong>Rp <%= (o.total_harga || 0).toLocaleString('id-ID') %></strong></div>
+                <div class="text-right" style="color:var(--oct-text-muted);"><%= (o.items || []).length %> item</div>
+            </div>
+            <% if (o.rejection_reason) { %>
+                <div style="margin-top:0.75rem; padding:0.625rem 1rem; background:var(--oct-bg); border-radius:8px; font-size:0.875rem;">
+                    <strong>Alasan Ditolak:</strong> <%= o.rejection_reason %>
+                </div>
+            <% } %>
+        </div>
+    </div>
+<% } %>
 
 <script>
     (function() {
         var params = new URLSearchParams(window.location.search);
         var ok = params.get('ok'), err = params.get('err');
-        if (ok && typeof Swal !== 'undefined') {
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: ok, showConfirmButton: false, timer: 3000 });
-            params.delete('ok'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
-        }
-        if (err && typeof Swal !== 'undefined') {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: err });
-            params.delete('err'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
-        }
+        if (ok && typeof Swal !== 'undefined') { Swal.fire({toast:true,position:'top-end',icon:'success',title:ok,showConfirmButton:false,timer:3000}); params.delete('ok'); window.history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():'')); }
+        if (err && typeof Swal !== 'undefined') { Swal.fire({icon:'error',title:'Gagal',text:err,confirmButtonColor:'#3B82F6'}); params.delete('err'); window.history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():'')); }
     })();
 </script>

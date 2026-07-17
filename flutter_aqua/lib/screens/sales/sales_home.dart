@@ -1,12 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import '../../services/api_client.dart';
 import '../../services/auth_service.dart';
 import '../auth/login_page.dart';
 import '../settings/settings_page.dart';
 import 'sales_dashboard_page.dart';
 import 'sales_create_order_page.dart';
 import 'sales_order_list_page.dart';
+import 'sales_report_page.dart';
 
 class SalesHomePage extends StatefulWidget {
   const SalesHomePage({super.key});
@@ -31,6 +30,7 @@ class _SalesHomePageState extends State<SalesHomePage> {
       const SalesDashboardPage(),
       const SalesCreateOrderPage(),
       const SalesOrderListPage(),
+      const SalesReportPage(),
     ];
 
     return Scaffold(
@@ -61,6 +61,7 @@ class _SalesHomePageState extends State<SalesHomePage> {
             NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
             NavigationDestination(icon: Icon(Icons.add_shopping_cart_outlined), selectedIcon: Icon(Icons.add_shopping_cart), label: 'Buat Order'),
             NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox), label: 'Daftar'),
+            NavigationDestination(icon: Icon(Icons.assessment_outlined), selectedIcon: Icon(Icons.assessment), label: 'Laporan'),
           ],
         ),
       ),

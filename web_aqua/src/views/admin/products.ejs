@@ -1,25 +1,27 @@
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Produk</h1>
-    <button class="btn btn-primary" data-toggle="modal" data-target="#modalCreate">
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128230;</span>Produk
+    </h1>
+    <button class="btn btn-primary" data-toggle="modal" data-target="#modalCreate" style="display:inline-flex; align-items:center; gap:0.5rem;">
         <i class="fas fa-plus"></i> Tambah Produk
     </button>
 </div>
 
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex align-items-center justify-content-between flex-wrap" style="gap:8px;">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Produk</h6>
-        <div class="input-group" style="max-width: 250px;">
+<div class="card" style="margin-bottom:1.5rem;">
+    <div style="padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--oct-border-light);">
+        <span style="font-family:'Poppins',sans-serif; font-weight:600; font-size:0.9375rem; color:var(--oct-text);">Daftar Produk</span>
+        <div class="input-group" style="max-width:250px;">
             <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari ...">
             <div class="input-group-append">
                 <span class="input-group-text"><i class="fas fa-search"></i></span>
             </div>
         </div>
     </div>
-    <div class="card-body">
+    <div style="padding:1rem 1.25rem;">
         <!-- Filter Divisi -->
-        <div class="mb-3 d-flex align-items-center flex-wrap" style="gap:6px;">
-            <span class="mr-2 text-gray-600 font-weight-bold small">
-                <i class="fas fa-layer-group mr-1"></i> Divisi:
+        <div style="margin-bottom:1rem; display:flex; align-items:center; flex-wrap:wrap; gap:0.375rem;">
+            <span style="font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-right:0.5rem;">
+                <i class="fas fa-layer-group" style="margin-right:0.25rem;"></i> Divisi:
             </span>
             <button type="button" class="btn btn-sm btn-primary filter-divisi active" data-divisi="all">Semua</button>
             <% if(typeof listDivisi !== 'undefined') { listDivisi.forEach(d => { %>
@@ -29,7 +31,7 @@
 
         <div class="table-responsive">
             <table class="table table-bordered table-hover" id="productsTable">
-                <thead class="thead-light">
+                <thead>
                     <tr>
                         <th>Gambar</th>
                         <th>SKU</th>
@@ -49,22 +51,17 @@
                         <tr>
                             <td class="text-center">
                                 <% if (p.gambar_url) { %>
-                                    <img src="<%= p.gambar_url %>" alt="img"
-                                        style="height:45px; object-fit:cover; border-radius:4px;">
-                                    <% } else { %>
-                                        <span class="text-muted">-</span>
-                                        <% } %>
+                                    <img src="<%= p.gambar_url %>" alt="img" style="height:45px; object-fit:cover; border-radius:8px;">
+                                <% } else { %>
+                                    <span style="color:var(--oct-text-muted);">-</span>
+                                <% } %>
                             </td>
-                            <td>
-                                <%= p.sku %>
-                            </td>
-                            <td>
-                                <%= p.barcode || '-' %>
-                            </td>
-                            <td><%= p.nama_produk %></td>
+                            <td><span style="background:var(--oct-bg); padding:0.25rem 0.5rem; border-radius:6px; font-weight:600; font-size:0.75rem; font-family:monospace;"><%= p.sku %></span></td>
+                            <td><%= p.barcode || '-' %></td>
+                            <td><strong><%= p.nama_produk %></strong></td>
                             <td><%= p.satuan %></td>
                             <td><%= p.divisi || '-' %></td>
-                            <td class="text-right font-weight-bold <%= (p.stok || 0) <= 0 ? 'text-danger' : '' %>"><%= p.stok || 0 %></td>
+                            <td class="text-right font-weight-bold" style="color:<%= (p.stok || 0) <= 0 ? 'var(--oct-red)' : 'var(--oct-green-dark)' %>;"><%= p.stok || 0 %></td>
                             <td class="text-right"><%= p.harga_modal || 0 %></td>
                             <td class="text-right"><%= p.harga_jual || 0 %></td>
                             <td class="text-right"><%= p.pajak || 0 %></td>
@@ -77,14 +74,12 @@
                                     data-hargajual="<%= p.harga_jual || 0 %>" data-pajak="<%= p.pajak || 0 %>">
                                     <i class="fas fa-edit"></i>
                                 </button>
-
-                                <button type="button" class="btn btn-sm btn-danger btn-del" data-id="<%= p.id %>"
-                                    data-sku="<%= p.sku %>">
+                                <button type="button" class="btn btn-sm btn-danger btn-del" data-id="<%= p.id %>" data-sku="<%= p.sku %>">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
                         </tr>
-                        <% }) %>
+                    <% }) %>
                 </tbody>
             </table>
         </div>
@@ -96,68 +91,33 @@
     <div class="modal-dialog modal-lg" role="document">
         <form method="post" action="/admin/products" enctype="multipart/form-data" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Tambah Produk</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Tambah Produk</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
                 <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label>SKU</label>
-                        <input name="sku" class="form-control" required>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Barcode</label>
-                        <input name="barcode" class="form-control" placeholder="opsional">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Satuan</label>
-                        <input name="satuan" class="form-control" required placeholder="mis. pcs, box">
-                    </div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">SKU</label><input name="sku" class="form-control" required></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Barcode</label><input name="barcode" class="form-control" placeholder="opsional"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Satuan</label><input name="satuan" class="form-control" required placeholder="mis. pcs, box"></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group col-md-5">
-                        <label>Nama Produk</label>
-                        <input name="nama_produk" class="form-control" required>
-                    </div>
+                    <div class="form-group col-md-5"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Nama Produk</label><input name="nama_produk" class="form-control" required></div>
                     <div class="form-group col-md-4">
-                        <label>Divisi</label>
+                        <label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Divisi</label>
                         <select name="divisi" class="form-control">
                             <option value="">-- Pilih Divisi (Opsional) --</option>
-                            <% if(typeof listDivisi !== 'undefined') { listDivisi.forEach(d => { %>
-                                <option value="<%= d.nama %>"><%= d.nama %></option>
-                            <% }) } %>
+                            <% if(typeof listDivisi !== 'undefined') { listDivisi.forEach(d => { %><option value="<%= d.nama %>"><%= d.nama %></option><% }) } %>
                         </select>
                     </div>
-                    <div class="form-group col-md-3">
-                        <label>Stok Gudang</label>
-                        <input type="number" name="stok" class="form-control" value="0">
-                    </div>
+                    <div class="form-group col-md-3"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Stok Gudang</label><input type="number" name="stok" class="form-control" value="0"></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label>Harga Modal (Cost)</label>
-                        <input type="number" name="harga_modal" class="form-control" value="0">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Harga Jual (Net Value)</label>
-                        <input type="number" name="harga_jual" class="form-control" value="0">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Pajak</label>
-                        <input type="number" name="pajak" class="form-control" value="0">
-                    </div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Harga Modal</label><input type="number" name="harga_modal" class="form-control" value="0"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Harga Jual</label><input type="number" name="harga_jual" class="form-control" value="0"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Pajak</label><input type="number" name="pajak" class="form-control" value="0"></div>
                 </div>
-
-                <div class="form-group">
-                    <label>Gambar (max 5MB)</label>
-                    <input type="file" name="gambar" accept="image/*" class="form-control-file">
-                </div>
+                <div class="form-group"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Gambar (max 5MB)</label><input type="file" name="gambar" accept="image/*" class="form-control-file"></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
                 <button class="btn btn-primary" type="submit">Simpan</button>
             </div>
         </form>
@@ -169,72 +129,39 @@
     <div class="modal-dialog modal-lg" role="document">
         <form id="formEdit" method="post" enctype="multipart/form-data" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Produk</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Edit Produk</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
                 <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label>SKU</label>
-                        <input name="sku" id="edit_sku" class="form-control" required>
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Barcode</label>
-                        <input name="barcode" id="edit_barcode" class="form-control" placeholder="opsional">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Satuan</label>
-                        <input name="satuan" id="edit_satuan" class="form-control" required>
-                    </div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">SKU</label><input name="sku" id="edit_sku" class="form-control" required></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Barcode</label><input name="barcode" id="edit_barcode" class="form-control" placeholder="opsional"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Satuan</label><input name="satuan" id="edit_satuan" class="form-control" required></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group col-md-5">
-                        <label>Nama Produk</label>
-                        <input name="nama_produk" id="edit_nama_produk" class="form-control" required>
-                    </div>
+                    <div class="form-group col-md-5"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Nama Produk</label><input name="nama_produk" id="edit_nama_produk" class="form-control" required></div>
                     <div class="form-group col-md-4">
-                        <label>Divisi</label>
+                        <label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Divisi</label>
                         <select name="divisi" id="edit_divisi" class="form-control">
                             <option value="">-- Pilih Divisi (Opsional) --</option>
-                            <% if(typeof listDivisi !== 'undefined') { listDivisi.forEach(d => { %>
-                                <option value="<%= d.nama %>"><%= d.nama %></option>
-                            <% }) } %>
+                            <% if(typeof listDivisi !== 'undefined') { listDivisi.forEach(d => { %><option value="<%= d.nama %>"><%= d.nama %></option><% }) } %>
                         </select>
                     </div>
-                    <div class="form-group col-md-3">
-                        <label>Stok Gudang</label>
-                        <input type="number" name="stok" id="edit_stok" class="form-control" value="0">
-                    </div>
+                    <div class="form-group col-md-3"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Stok Gudang</label><input type="number" name="stok" id="edit_stok" class="form-control" value="0"></div>
                 </div>
-
                 <div class="form-row">
-                    <div class="form-group col-md-4">
-                        <label>Harga Modal (Cost)</label>
-                        <input type="number" name="harga_modal" id="edit_harga_modal" class="form-control" value="0">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Harga Jual (Net Value)</label>
-                        <input type="number" name="harga_jual" id="edit_harga_jual" class="form-control" value="0">
-                    </div>
-                    <div class="form-group col-md-4">
-                        <label>Pajak</label>
-                        <input type="number" name="pajak" id="edit_pajak" class="form-control" value="0">
-                    </div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Harga Modal</label><input type="number" name="harga_modal" id="edit_harga_modal" class="form-control" value="0"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Harga Jual</label><input type="number" name="harga_jual" id="edit_harga_jual" class="form-control" value="0"></div>
+                    <div class="form-group col-md-4"><label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Pajak</label><input type="number" name="pajak" id="edit_pajak" class="form-control" value="0"></div>
                 </div>
-
                 <div class="form-group">
-                    <label>Gambar (biarkan kosong bila tidak diubah)</label>
+                    <label style="font-weight:600; font-size:0.8125rem; color:var(--oct-text-2); margin-bottom:0.375rem;">Gambar (biarkan kosong bila tidak diubah)</label>
                     <div class="d-flex align-items-center">
-                        <img id="edit_preview" src="" alt=""
-                            style="height:50px; width:50px; object-fit:cover; border-radius:4px; margin-right:10px; display:none;">
+                        <img id="edit_preview" src="" alt="" style="height:50px; width:50px; object-fit:cover; border-radius:8px; margin-right:10px; display:none;">
                         <input type="file" name="gambar" accept="image/*" class="form-control-file">
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
                 <button class="btn btn-primary" type="submit">Simpan Perubahan</button>
             </div>
         </form>
@@ -242,39 +169,28 @@
 </div>
 
 <!-- DataTables -->
-<link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.6/jquery.dataTables.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.js"></script>
 
 <script>
     $(function () {
-        const dt = $('#productsTable').DataTable({
-            pageLength: 10, lengthChange: false, order: [[1, 'asc']]
-        });
-        $('#productsTable_filter').hide(); // sembunyikan search default DataTables
+        const dt = $('#productsTable').DataTable({ pageLength: 10, lengthChange: false, order: [[1, 'asc']] });
+        $('#productsTable_filter').hide();
         $('#tableSearch').on('keyup', function () { dt.search(this.value).draw(); });
 
-        // === FILTER DIVISI ===
-        let activeDivisi = 'all';
         $('.filter-divisi').on('click', function () {
             const $btn = $(this);
             const divisi = $btn.data('divisi');
-
-            // toggle active state
             $('.filter-divisi').removeClass('btn-primary').addClass('btn-outline-secondary');
             $btn.removeClass('btn-outline-secondary').addClass('btn-primary');
-
-            activeDivisi = divisi;
             dt.column(5).search(divisi === 'all' ? '' : '^' + divisi + '$', true, false).draw();
         });
 
-        // Edit Modal — fix relatedTarget agar selalu tombol, bukan ikon <i>
         $('#modalEdit').on('show.bs.modal', function (e) {
             const $btn = $(e.relatedTarget).closest('button');
             const id = $btn.data('id');
             $('#formEdit').attr('action', '/admin/products/' + id);
-
             $('#edit_sku').val($btn.data('sku'));
             $('#edit_barcode').val($btn.data('barcode'));
             $('#edit_nama_produk').val($btn.data('nama-produk'));
@@ -284,31 +200,23 @@
             $('#edit_harga_modal').val($btn.data('hargamodal'));
             $('#edit_harga_jual').val($btn.data('hargajual'));
             $('#edit_pajak').val($btn.data('pajak'));
-
             const img = $btn.data('gambar-url');
             if (img) { $('#edit_preview').attr('src', img).show(); } else { $('#edit_preview').hide(); }
         });
 
-        // SweetAlert2: Konfirmasi hapus + toast dari query
         $('.btn-del').on('click', function () {
             const $btn = $(this);
             const id = $btn.data('id');
             const sku = $btn.data('sku');
-
             Swal.fire({
-                title: 'Hapus produk?',
-                html: `Produk <b>${sku}</b> akan dihapus permanen.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, hapus',
-                cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then((r) => {
+                title: 'Hapus produk?', html: 'Produk <b>' + sku + '</b> akan dihapus permanen.',
+                icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, hapus', cancelButtonText: 'Batal',
+                confirmButtonColor: '#EF4444', reverseButtons: true
+            }).then(function(r) {
                 if (r.isConfirmed) {
                     const form = $('<form>', { method: 'post', action: '/admin/products/' + id + '/delete' });
                     form.append($('<input>', { type: 'hidden', name: '_csrf', value: '<%= csrfToken %>' }));
-                    $('body').append(form);
-                    form.trigger('submit');
+                    $('body').append(form); form.trigger('submit');
                 }
             });
         });
@@ -316,16 +224,12 @@
         const params = new URLSearchParams(location.search);
         const ok = params.get('ok'); const err = params.get('err');
         if (ok) {
-            Swal.fire({
-                toast: true, position: 'top-end', icon: 'success',
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success',
                 title: ok === 'created' ? 'Produk dibuat' : ok === 'updated' ? 'Perubahan disimpan' : 'Produk dihapus',
                 showConfirmButton: false, timer: 2200, timerProgressBar: true
             });
-            params.delete('ok'); history.replaceState({}, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
+            params.delete('ok'); history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
         }
-        if (err) {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: err });
-            params.delete('err'); history.replaceState({}, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
-        }
+        if (err) { Swal.fire({ icon: 'error', title: 'Gagal', text: err, confirmButtonColor: '#3B82F6' }); params.delete('err'); history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : '')); }
     });
 </script>

@@ -1,0 +1,290 @@
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128200;</span>Laporan Penjualan Saya
+    </h1>
+    <button id="btnDownloadExcel" class="btn btn-sm btn-success" style="display:inline-flex; align-items:center; gap:0.5rem; border-radius:50rem;">
+        <i class="fas fa-file-excel"></i> Download Excel
+    </button>
+</div>
+
+<style>
+    .oct-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .oct-stat-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; padding: 1.25rem; box-shadow: var(--oct-shadow-sm); }
+    .oct-stat-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1rem; margin-bottom: 0.75rem; }
+    .oct-stat-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-text-muted); margin-bottom: 0.25rem; }
+    .oct-stat-value { font-family: 'Poppins', sans-serif; font-size: 1.375rem; font-weight: 700; color: var(--oct-text); line-height: 1; }
+    .oct-chart-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.5rem; }
+    .oct-chart-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.9375rem; color: var(--oct-text); }
+    .oct-chart-body { padding: 1.25rem; }
+    .oct-pill { padding: 0.25em 0.75em; border-radius: 50rem; font-weight: 700; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: inline-block; }
+    .oct-pill-pending { background: var(--oct-yellow); color: #1E293B; }
+    .oct-pill-approved_admin { background: #06B6D4; }
+    .oct-pill-dipaket { background: var(--oct-yellow-dark); }
+    .oct-pill-dikirim { background: var(--oct-primary); }
+    .oct-pill-selesai, .oct-pill-diterima { background: var(--oct-green-dark); }
+    .oct-pill-rejected, .oct-pill-ditolak { background: var(--oct-red); }
+    @media (max-width: 767px) { .oct-stat-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 575px) { .oct-stat-row { grid-template-columns: 1fr; } }
+</style>
+
+<!-- Summary Cards -->
+<div class="oct-stat-row">
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #3B82F6, #60A5FA);"><i class="fas fa-shopping-cart"></i></div>
+        <div class="oct-stat-label">Total Pesanan</div>
+        <div class="oct-stat-value"><%= summary.totalOrders %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #4ADE80, #22C55E);"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="oct-stat-label">Total Pendapatan</div>
+        <div class="oct-stat-value" style="color:var(--oct-green-dark); font-size:1.125rem;">Rp <%= summary.totalPendapatan.toLocaleString('id-ID') %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #6366F1, #818CF8);"><i class="fas fa-cubes"></i></div>
+        <div class="oct-stat-label">Item Terjual</div>
+        <div class="oct-stat-value"><%= summary.totalItem %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #F472B6, #EC4899);"><i class="fas fa-store"></i></div>
+        <div class="oct-stat-label">Cabang Dilayani</div>
+        <div class="oct-stat-value"><%= Object.keys(usersMap).length %></div>
+    </div>
+</div>
+
+<!-- Status Breakdown -->
+<div class="oct-chart-card">
+    <div class="oct-chart-header"><i class="fas fa-chart-pie" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Status Pesanan</div>
+    <div class="oct-chart-body">
+        <div style="display:flex; flex-wrap:wrap; gap:1.5rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:var(--oct-yellow);"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Pending: <strong style="color:var(--oct-text);"><%= statusCount.pending %></strong></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:#06B6D4;"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Diverifikasi: <strong style="color:var(--oct-text);"><%= statusCount.approved_admin %></strong></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:var(--oct-yellow-dark);"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Dikemas: <strong style="color:var(--oct-text);"><%= statusCount.dipaket %></strong></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:var(--oct-primary);"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Dikirim: <strong style="color:var(--oct-text);"><%= statusCount.dikirim %></strong></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:var(--oct-green-dark);"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Selesai: <strong style="color:var(--oct-text);"><%= statusCount.selesai %></strong></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+                <div style="width:12px; height:12px; border-radius:3px; background:var(--oct-red);"></div>
+                <span style="font-size:0.875rem; color:var(--oct-text-2);">Ditolak: <strong style="color:var(--oct-text);"><%= statusCount.rejected %></strong></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Chart -->
+<% if (monthly.length > 0) { %>
+<div class="oct-chart-card">
+    <div class="oct-chart-header"><i class="fas fa-chart-line" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Grafik Pendapatan per Bulan</div>
+    <div class="oct-chart-body">
+        <div style="height:300px;"><canvas id="salesChart"></canvas></div>
+    </div>
+</div>
+<% } %>
+
+<!-- Per-Cabang Breakdown -->
+<% if (branches && branches.length > 0) { %>
+<div style="margin-bottom:1.5rem;">
+    <h2 style="font-family:'Poppins',sans-serif; font-size:1.125rem; font-weight:700; color:var(--oct-text); margin-bottom:1rem;">
+        <i class="fas fa-store" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Per Cabang
+    </h2>
+    <% var rankColors = ['#3B82F6','#6366F1','#06B6D4','#4ADE80','#FBBF24','#F472B6']; %>
+    <% branches.forEach(function(b, idx) { var color = rankColors[idx % rankColors.length]; var maxM = Math.max.apply(null, b.monthly.map(function(m){return m.total;}).concat([1])); %>
+    <div class="oct-chart-card" style="margin-bottom:1rem;">
+        <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--oct-border-light); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:0.75rem;">
+                <div style="width:32px; height:32px; border-radius:8px; background:<%= color %>; color:#fff; display:flex; align-items:center; justify-content:center; font-family:'Poppins',sans-serif; font-weight:700; font-size:0.875rem;"><%= idx + 1 %></div>
+                <div>
+                    <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:0.9375rem; color:var(--oct-text);"><%= b.nama_cabang || b.username %></div>
+                    <div style="font-size:0.75rem; color:var(--oct-text-muted);"><% if (b.kota) { %><%= b.kota %><% if (b.provinsi) { %>, <%= b.provinsi %><% } %><% } else { %><%= b.username %><% } %></div>
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.0625rem; color:var(--oct-green-dark);">Rp <%= b.totalPendapatan.toLocaleString('id-ID') %></div>
+                <div style="font-size:0.75rem; color:var(--oct-text-muted);"><%= b.totalOrders %> pesanan &bull; <%= b.totalItem %> item</div>
+            </div>
+        </div>
+        <% if (b.monthly.length > 0) { %>
+        <div style="padding:1rem 1.25rem;">
+            <div style="font-size:0.75rem; font-weight:600; color:var(--oct-text-muted); margin-bottom:0.5rem;">Pendapatan per Bulan</div>
+            <div style="display:flex; gap:0.375rem; align-items:flex-end; height:60px;">
+                <% b.monthly.forEach(function(m) { var h = maxM > 0 ? Math.max(4, Math.round((m.total / maxM) * 52)) : 4; %>
+                <div style="flex:1; min-width:28px; display:flex; flex-direction:column; align-items:center; gap:3px;">
+                    <div style="font-size:0.5625rem; font-weight:600; color:var(--oct-text-muted);"><%= m.count %></div>
+                    <div style="width:100%; height:<%= h %>px; background:<%= color %>; border-radius:4px 4px 0 0; opacity:0.8;"></div>
+                    <div style="font-size:0.5625rem; color:var(--oct-text-muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:36px;"><%= m.label %></div>
+                </div>
+                <% }); %>
+            </div>
+        </div>
+        <% } %>
+    </div>
+    <% }); %>
+</div>
+<% } %>
+
+<!-- Orders Table -->
+<div class="oct-chart-card">
+    <div class="oct-chart-header" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem;">
+        <span><i class="fas fa-table" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Detail Pesanan</span>
+        <div class="input-group" style="max-width:250px;">
+            <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari ...">
+            <div class="input-group-append"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
+        </div>
+    </div>
+    <div class="chart-body" style="padding:0;">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover mb-0" id="ordersTable" style="font-size:0.875rem;">
+                <thead>
+                    <tr>
+                        <th>Kode Order</th>
+                        <th>Cabang</th>
+                        <th>Tanggal</th>
+                        <th>Status</th>
+                        <th class="text-right">Jumlah Item</th>
+                        <th class="text-right">Total Harga</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% orders.forEach(o => {
+                        var cabang = usersMap && usersMap[o.cabang_id] ? usersMap[o.cabang_id] : null;
+                        var st = (o.status || 'pending').toLowerCase();
+                        var dateStr = '-';
+                        if (o.createdAt) {
+                            var dt = o.createdAt.toDate ? o.createdAt.toDate() : (o.createdAt._seconds ? new Date(o.createdAt._seconds * 1000) : new Date(o.createdAt));
+                            dateStr = dt.toLocaleDateString('id-ID', {day:'2-digit', month:'short', year:'numeric'});
+                        }
+                        var itemCount = 0;
+                        if (Array.isArray(o.items)) { o.items.forEach(it => { itemCount += Number(it.qty || 0); }); }
+                    %>
+                    <tr>
+                        <td><span style="color:var(--oct-primary); background:var(--oct-primary-bg); padding:0.2rem 0.5rem; border-radius:6px; font-weight:700; font-size:0.8125rem; font-family:monospace;"><%= o.kode_order %></span></td>
+                        <td><%= cabang ? (cabang.nama_cabang || cabang.username) : o.cabang_id %></td>
+                        <td><%= dateStr %></td>
+                        <td><span class="oct-pill oct-pill-<%= st %>"><%= (o.status || 'pending').toUpperCase() %></span></td>
+                        <td class="text-right"><%= itemCount %></td>
+                        <td class="text-right" style="font-weight:600; color:var(--oct-green-dark);">Rp <%= (o.total_harga || 0).toLocaleString('id-ID') %></td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.bootstrap4.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.6/jquery.dataTables.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.bootstrap4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // DataTable with Excel export
+        var dt = $('#ordersTable').DataTable({
+            pageLength: 25,
+            lengthMenu: [10, 25, 50, 100],
+            order: [[2, 'desc']],
+            dom: "<'row'<'col-sm-12 col-md-6'l><'col-sm-12 col-md-6'>>" +
+                 "<'row'<'col-sm-12'tr>>" +
+                 "<'row'<'col-sm-12 col-md-5'i><'col-sm-12 col-md-7'p>>",
+            language: {
+                search: "Cari:",
+                paginate: { previous: "Sebelumnya", next: "Selanjutnya" },
+                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ pesanan",
+                lengthMenu: "Tampilkan _MENU_ pesanan",
+                emptyTable: "Belum ada pesanan"
+            }
+        });
+        $('#ordersTable_filter').hide();
+        $('#tableSearch').on('keyup', function() { dt.search(this.value).draw(); });
+
+        // Excel download button
+        $('#btnDownloadExcel').on('click', function() {
+            dt.button('.buttons-excel').trigger();
+        });
+
+        // Chart
+        var monthlyData = <%- JSON.stringify(monthly) %>;
+        if (monthlyData.length > 0) {
+            var ctx = document.getElementById('salesChart');
+            if (ctx) {
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: monthlyData.map(function(m) { return m.label; }),
+                        datasets: [{
+                            label: 'Pendapatan (Rp)',
+                            data: monthlyData.map(function(m) { return m.total; }),
+                            backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                            borderColor: 'rgba(59, 130, 246, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barPercentage: 0.6,
+                        }, {
+                            label: 'Jumlah Pesanan',
+                            data: monthlyData.map(function(m) { return m.count; }),
+                            backgroundColor: 'rgba(74, 222, 128, 0.5)',
+                            borderColor: 'rgba(74, 222, 128, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                            barPercentage: 0.6,
+                            yAxisID: 'y1',
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: {
+                                position: 'left',
+                                ticks: {
+                                    callback: function(v) {
+                                        return v >= 1000000 ? 'Rp ' + (v/1000000).toLocaleString('id-ID') + 'M' :
+                                               v >= 1000 ? 'Rp ' + (v/1000).toLocaleString('id-ID') + 'K' : 'Rp ' + v.toLocaleString('id-ID');
+                                    }
+                                },
+                                grid: { color: 'rgba(226,232,240,0.5)', drawBorder: false }
+                            },
+                            y1: {
+                                position: 'right',
+                                grid: { display: false },
+                                ticks: { stepSize: 1 }
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'top', labels: { usePointStyle: true, padding: 16 } },
+                            tooltip: {
+                                backgroundColor: '#fff', bodyColor: '#64748B', titleColor: '#1E293B',
+                                borderColor: '#E2E8F0', borderWidth: 1, padding: 12,
+                                callbacks: {
+                                    label: function(c) {
+                                        if (c.datasetIndex === 0) return 'Pendapatan: Rp ' + c.parsed.y.toLocaleString('id-ID');
+                                        return 'Pesanan: ' + c.parsed.y;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    });
+</script>

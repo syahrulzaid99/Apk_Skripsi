@@ -1,98 +1,58 @@
-<% /* Halaman Stok Cabang — Admin melihat stok yang terkirim ke tiap cabang */ %>
-
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">
-        <i class="fas fa-store-alt mr-2"></i>Stok Cabang
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#127978;</span>Stok Cabang
     </h1>
 </div>
 
-<!-- Summary Cards Row -->
-<div class="row mb-4">
-    <div class="col-xl-4 col-md-6 mb-3">
-        <div class="card border-left-primary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Cabang</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800"><%= cabangSummaries.length %></div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-store fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+<style>
+    .oct-stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .oct-stat-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; padding: 1.25rem; box-shadow: var(--oct-shadow-sm); display: flex; align-items: center; gap: 1rem; }
+    .oct-stat-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.125rem; flex-shrink: 0; }
+    .oct-stat-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-text-muted); }
+    .oct-stat-value { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--oct-text); line-height: 1; }
+    @media (max-width: 767px) { .oct-stat-row { grid-template-columns: 1fr; } }
+</style>
+
+<!-- Summary Cards -->
+<div class="oct-stat-row">
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #3B82F6, #60A5FA);"><i class="fas fa-store"></i></div>
+        <div><div class="oct-stat-label">Total Cabang</div><div class="oct-stat-value"><%= cabangSummaries.length %></div></div>
     </div>
-    <div class="col-xl-4 col-md-6 mb-3">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Stok Tersebar</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <%= cabangSummaries.reduce((s, c) => s + c.totalStok, 0) %>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-boxes fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #4ADE80, #22C55E);"><i class="fas fa-boxes-stacked"></i></div>
+        <div><div class="oct-stat-label">Total Stok Tersebar</div><div class="oct-stat-value"><%= cabangSummaries.reduce((s, c) => s + c.totalStok, 0) %></div></div>
     </div>
-    <div class="col-xl-4 col-md-6 mb-3">
-        <div class="card border-left-info shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Pengiriman Diterima</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">
-                            <%= cabangSummaries.reduce((s, c) => s + c.totalShipmentsDiterima, 0) %>
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-truck fa-2x text-gray-300"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-icon" style="background:linear-gradient(135deg, #06B6D4, #0891B2);"><i class="fas fa-truck"></i></div>
+        <div><div class="oct-stat-label">Pengiriman Diterima</div><div class="oct-stat-value"><%= cabangSummaries.reduce((s, c) => s + c.totalShipmentsDiterima, 0) %></div></div>
     </div>
 </div>
 
 <!-- Cabang List Table -->
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Cabang & Stok</h6>
-        <div class="d-flex align-items-center gap-2">
-            <select id="areaFilter" class="form-control form-control-sm" style="max-width: 200px;">
+<div class="card" style="margin-bottom:1.5rem;">
+    <div style="padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--oct-border-light);">
+        <span style="font-family:'Poppins',sans-serif; font-weight:600; font-size:0.9375rem; color:var(--oct-text);">Daftar Cabang & Stok</span>
+        <div class="d-flex align-items-center" style="gap:0.5rem;">
+            <select id="areaFilter" class="form-control form-control-sm" style="max-width:200px;">
                 <option value="">Semua Area</option>
-                <% if (areas && areas.length > 0) { %>
-                    <% areas.forEach(a => { %>
-                        <option value="<%= a %>" <%= a === selectedArea ? 'selected' : '' %>><%= a %></option>
-                    <% }) %>
-                <% } %>
+                <% if (areas && areas.length > 0) { areas.forEach(a => { %>
+                    <option value="<%= a %>" <%= a === selectedArea ? 'selected' : '' %>><%= a %></option>
+                <% }) } %>
             </select>
-            <div class="input-group" style="max-width: 250px;">
+            <div class="input-group" style="max-width:250px;">
                 <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari cabang ...">
-                <div class="input-group-append">
-                    <span class="input-group-text"><i class="fas fa-search"></i></span>
-                </div>
+                <div class="input-group-append"><span class="input-group-text"><i class="fas fa-search"></i></span></div>
             </div>
         </div>
     </div>
-    <div class="card-body">
+    <div style="padding:1rem 1.25rem;">
         <div class="table-responsive">
             <table class="table table-bordered table-hover" id="cabangTable">
-                <thead class="thead-light">
+                <thead>
                     <tr>
-                        <th>#</th>
-                        <th>Nama Cabang</th>
-                        <th>Kota</th>
-                        <th>Provinsi</th>
-                        <th>Jenis Produk</th>
-                        <th>Total Stok</th>
-                        <th>Pengiriman Diterima</th>
-                        <th>Aksi</th>
+                        <th>#</th><th>Nama Cabang</th><th>Kota</th><th>Provinsi</th>
+                        <th>Jenis Produk</th><th>Total Stok</th><th>Pengiriman Diterima</th><th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -100,35 +60,17 @@
                         <% cabangSummaries.forEach((c, idx) => { %>
                         <tr>
                             <td><%= idx + 1 %></td>
-                            <td>
-                                <i class="fas fa-store-alt text-primary mr-1"></i>
-                                <strong><%= c.nama_cabang || c.username || '-' %></strong>
-                            </td>
+                            <td><i class="fas fa-store-alt" style="color:var(--oct-primary); margin-right:0.375rem;"></i><strong><%= c.nama_cabang || c.username || '-' %></strong></td>
                             <td><%= c.kota || '-' %></td>
                             <td><%= c.provinsi || '-' %></td>
-                            <td>
-                                <span class="badge badge-primary"><%= c.totalItems %> produk</span>
-                            </td>
-                            <td>
-                                <span class="font-weight-bold <%= c.totalStok > 0 ? 'text-success' : 'text-muted' %>">
-                                    <%= c.totalStok %>
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge badge-info"><%= c.totalShipmentsDiterima %> pengiriman</span>
-                            </td>
-                            <td>
-                                <a href="/admin/cabang?cabang=<%= c.id %>" 
-                                   class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i> Detail
-                                </a>
-                            </td>
+                            <td><span class="badge badge-primary"><%= c.totalItems %> produk</span></td>
+                            <td><span class="font-weight-bold" style="color:<%= c.totalStok > 0 ? 'var(--oct-green-dark)' : 'var(--oct-text-muted)' %>;"><%= c.totalStok %></span></td>
+                            <td><span class="badge" style="background:#06B6D4;"><%= c.totalShipmentsDiterima %> pengiriman</span></td>
+                            <td><a href="/admin/cabang?cabang=<%= c.id %>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye" style="margin-right:0.25rem;"></i> Detail</a></td>
                         </tr>
                         <% }) %>
                     <% } else { %>
-                        <tr>
-                            <td colspan="8" class="text-center text-muted">Belum ada data cabang</td>
-                        </tr>
+                        <tr><td colspan="8" class="text-center" style="color:var(--oct-text-muted); padding:2rem;">Belum ada data cabang</td></tr>
                     <% } %>
                 </tbody>
             </table>
@@ -136,96 +78,62 @@
     </div>
 </div>
 
-<!-- Detail Stok Cabang (jika ada selectedCabang) -->
+<!-- Detail Stok Cabang -->
 <% if (selectedCabang) { %>
-<div class="card shadow mb-4 border-left-primary" id="detailCabang">
-    <div class="card-header py-3 d-flex align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-boxes mr-1"></i>
+<div class="card" style="margin-bottom:1.5rem;" id="detailCabang">
+    <div style="padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--oct-border-light);">
+        <span style="font-family:'Poppins',sans-serif; font-weight:600; font-size:0.9375rem; color:var(--oct-text);">
+            <i class="fas fa-boxes-stacked" style="color:var(--oct-primary); margin-right:0.5rem;"></i>
             Detail Stok — <%= selectedCabang.nama_cabang || selectedCabang.username || '-' %>
-        </h6>
-        <a href="/admin/cabang" class="btn btn-sm btn-outline-secondary">
-            <i class="fas fa-times"></i> Tutup
-        </a>
+        </span>
+        <a href="/admin/cabang" class="btn btn-sm btn-outline-secondary"><i class="fas fa-times" style="margin-right:0.25rem;"></i> Tutup</a>
     </div>
-    <div class="card-body">
-        <!-- Info Cabang -->
-        <div class="row mb-3">
-            <div class="col-md-4">
-                <small class="text-muted">Nama Cabang</small><br>
-                <strong><%= selectedCabang.nama_cabang || '-' %></strong>
+    <div style="padding:1.25rem;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.875rem; margin-bottom:1.25rem;">
+            <div style="padding:0.75rem 1rem; background:var(--oct-bg); border-radius:12px; border:1px solid var(--oct-border-light);">
+                <div style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; color:var(--oct-primary); margin-bottom:0.25rem;">Nama Cabang</div>
+                <div style="font-weight:500; color:var(--oct-text);"><%= selectedCabang.nama_cabang || '-' %></div>
             </div>
-            <div class="col-md-4">
-                <small class="text-muted">Alamat</small><br>
-                <strong><%= [selectedCabang.jalan, selectedCabang.kota, selectedCabang.provinsi].filter(Boolean).join(', ') || '-' %></strong>
+            <div style="padding:0.75rem 1rem; background:var(--oct-bg); border-radius:12px; border:1px solid var(--oct-border-light);">
+                <div style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; color:var(--oct-primary); margin-bottom:0.25rem;">Alamat</div>
+                <div style="font-weight:500; color:var(--oct-text);"><%= [selectedCabang.jalan, selectedCabang.kota, selectedCabang.provinsi].filter(Boolean).join(', ') || '-' %></div>
             </div>
-            <div class="col-md-4">
-                <small class="text-muted">Username</small><br>
-                <strong><%= selectedCabang.username || '-' %></strong>
+            <div style="padding:0.75rem 1rem; background:var(--oct-bg); border-radius:12px; border:1px solid var(--oct-border-light);">
+                <div style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; color:var(--oct-primary); margin-bottom:0.25rem;">Username</div>
+                <div style="font-weight:500; color:var(--oct-text);"><%= selectedCabang.username || '-' %></div>
             </div>
         </div>
-        <hr>
 
-        <!-- Stok Table -->
         <% if (selectedCabang.stocks && selectedCabang.stocks.length > 0) { %>
         <div class="table-responsive">
-            <table class="table table-bordered table-striped" id="stockDetailTable">
-                <thead class="thead-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Produk</th>
-                        <th>SKU</th>
-                        <th>Barcode</th>
-                        <th>Divisi</th>
-                        <th>Stok Tersedia</th>
-                        <th>Satuan</th>
-                    </tr>
+            <table class="table table-bordered table-hover" id="stockDetailTable">
+                <thead>
+                    <tr><th>#</th><th>Produk</th><th>SKU</th><th>Barcode</th><th>Divisi</th><th>Stok Tersedia</th><th>Satuan</th></tr>
                 </thead>
                 <tbody>
                     <% selectedCabang.stocks.forEach((s, idx) => { %>
                     <tr>
                         <td><%= idx + 1 %></td>
-                        <td>
-                            <% if (s.gambar_url) { %>
-                                <img src="<%= s.gambar_url %>" alt="" 
-                                     style="width:32px;height:32px;object-fit:cover;border-radius:4px;" 
-                                     class="mr-2">
-                            <% } %>
-                            <strong><%= s.nama_produk %></strong>
-                        </td>
-                        <td><code><%= s.sku || '-' %></code></td>
+                        <td><% if (s.gambar_url) { %><img src="<%= s.gambar_url %>" alt="" style="width:32px;height:32px;object-fit:cover;border-radius:6px; margin-right:0.5rem; vertical-align:middle;"><% } %><strong><%= s.nama_produk %></strong></td>
+                        <td><span style="background:var(--oct-bg); padding:0.2rem 0.5rem; border-radius:6px; font-family:monospace; font-size:0.8125rem; font-weight:600;"><%= s.sku || '-' %></span></td>
                         <td><%= s.barcode || '-' %></td>
-                        <td>
-                            <% if (s.divisi) { %>
-                                <span class="badge badge-secondary"><%= s.divisi %></span>
-                            <% } else { %>
-                                -
-                            <% } %>
-                        </td>
-                        <td>
-                            <span class="font-weight-bold <%= s.stok > 0 ? 'text-success' : 'text-danger' %>">
-                                <%= s.stok %>
-                            </span>
-                        </td>
+                        <td><% if (s.divisi) { %><span class="badge badge-secondary"><%= s.divisi %></span><% } else { %>-<% } %></td>
+                        <td><span class="font-weight-bold" style="color:<%= s.stok > 0 ? 'var(--oct-green-dark)' : 'var(--oct-red)' %>;"><%= s.stok %></span></td>
                         <td><%= s.satuan || '-' %></td>
                     </tr>
                     <% }) %>
                 </tbody>
-                <tfoot>
-                    <tr class="font-weight-bold bg-light">
-                        <td colspan="5" class="text-right">Total Stok:</td>
-                        <td class="text-success">
-                            <%= selectedCabang.stocks.reduce((sum, s) => sum + s.stok, 0) %>
-                        </td>
-                        <td></td>
-                    </tr>
-                </tfoot>
+                <tfoot><tr style="font-weight:700; background:var(--oct-bg);">
+                    <td colspan="5" class="text-right">Total Stok:</td>
+                    <td style="color:var(--oct-green-dark);"><%= selectedCabang.stocks.reduce((sum, s) => sum + s.stok, 0) %></td>
+                    <td></td>
+                </tr></tfoot>
             </table>
         </div>
         <% } else { %>
-            <div class="text-center py-4 text-muted">
-                <i class="fas fa-inbox fa-3x mb-3"></i>
-                <p>Belum ada stok terkirim ke cabang ini</p>
+            <div class="text-center" style="padding:2rem; color:var(--oct-text-muted);">
+                <i class="fas fa-inbox" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+                <span>Belum ada stok terkirim ke cabang ini</span>
             </div>
         <% } %>
     </div>
@@ -233,30 +141,19 @@
 <% } %>
 
 <!-- DataTables -->
-<link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net/1.13.6/jquery.dataTables.min.js"></script>
-<script
-    src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables.net-bs4/1.13.6/dataTables.bootstrap4.min.js"></script>
 
 <script>
     $(function () {
-        // DataTable untuk tabel cabang
         const dt = $('#cabangTable').DataTable({
-            pageLength: 10,
-            lengthChange: false,
-            order: [[1, 'asc']],
-            language: {
-                search: "Cari:",
-                paginate: { previous: "Sebelumnya", next: "Selanjutnya" },
-                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ cabang",
-                emptyTable: "Tidak ada data cabang"
-            }
+            pageLength: 10, lengthChange: false, order: [[1, 'asc']],
+            language: { search: "Cari:", paginate: { previous: "Sebelumnya", next: "Selanjutnya" }, info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ cabang", emptyTable: "Tidak ada data" }
         });
         $('#cabangTable_filter').hide();
         $('#tableSearch').on('keyup', function () { dt.search(this.value).draw(); });
 
-        // Filter area: redirect ke ?area=xxx (pertahankan ?cabang= jika ada)
         $('#areaFilter').on('change', function () {
             const params = new URLSearchParams(window.location.search);
             const area = this.value;
@@ -264,20 +161,11 @@
             window.location.href = '/admin/cabang' + (params.toString() ? '?' + params.toString() : '');
         });
 
-        // DataTable untuk detail stok (jika ada)
         <% if (selectedCabang && selectedCabang.stocks && selectedCabang.stocks.length > 0) { %>
         $('#stockDetailTable').DataTable({
-            pageLength: 25,
-            lengthChange: false,
-            order: [[1, 'asc']],
-            language: {
-                search: "Cari:",
-                paginate: { previous: "Sebelumnya", next: "Selanjutnya" },
-                info: "Menampilkan _START_ s/d _END_ dari _TOTAL_ produk",
-            }
+            pageLength: 25, lengthChange: false, order: [[1, 'asc']],
+            language: { search: "Cari:", paginate: { previous: "Sebelumnya", next: "Selanjutnya" } }
         });
-
-        // Scroll ke detail
         $('html, body').animate({ scrollTop: $('#detailCabang').offset().top - 80 }, 400);
         <% } %>
     });

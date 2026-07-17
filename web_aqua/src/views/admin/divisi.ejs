@@ -1,24 +1,26 @@
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">Manajemen Divisi</h1>
-    <button class="btn btn-primary" data-toggle="modal" data-target="#modalCreate">
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#127991;</span>Divisi
+    </h1>
+    <button class="btn btn-primary" data-toggle="modal" data-target="#modalCreate" style="display:inline-flex; align-items:center; gap:0.5rem;">
         <i class="fas fa-plus"></i> Tambah Divisi
     </button>
 </div>
 
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex align-items-center justify-content-between">
-        <h6 class="m-0 font-weight-bold text-primary">Daftar Divisi (Kategori)</h6>
-        <div class="input-group" style="max-width: 250px;">
+<div class="card" style="margin-bottom:1.5rem;">
+    <div style="padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; border-bottom:1px solid var(--oct-border-light);">
+        <span style="font-family:'Poppins',sans-serif; font-weight:600; font-size:0.9375rem; color:var(--oct-text);">Daftar Divisi</span>
+        <div class="input-group" style="max-width:250px;">
             <input id="tableSearch" class="form-control form-control-sm" placeholder="Cari ...">
             <div class="input-group-append">
                 <span class="input-group-text"><i class="fas fa-search"></i></span>
             </div>
         </div>
     </div>
-    <div class="card-body">
+    <div style="padding:1rem 1.25rem;">
         <div class="table-responsive">
             <table class="table table-bordered table-hover" id="divisiTable">
-                <thead class="thead-light">
+                <thead>
                     <tr>
                         <th style="width:50px;">No</th>
                         <th>Nama Divisi</th>
@@ -30,7 +32,7 @@
                     <% divisi.forEach((d, i) => { %>
                         <tr>
                             <td class="text-center"><%= i + 1 %></td>
-                            <td class="font-weight-bold"><%= d.nama %></td>
+                            <td><strong><%= d.nama %></strong></td>
                             <td><%= d.keterangan || '-' %></td>
                             <td class="text-nowrap">
                                 <button type="button" class="btn btn-sm btn-info" data-toggle="modal"
@@ -38,9 +40,7 @@
                                     data-keterangan="<%= d.keterangan || '' %>">
                                     <i class="fas fa-edit"></i>
                                 </button>
-
-                                <button type="button" class="btn btn-sm btn-danger btn-del" data-id="<%= d.id %>"
-                                    data-nama="<%= d.nama %>">
+                                <button type="button" class="btn btn-sm btn-danger btn-del" data-id="<%= d.id %>" data-nama="<%= d.nama %>">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </td>
@@ -57,22 +57,13 @@
     <div class="modal-dialog" role="document">
         <form method="post" action="/admin/divisi" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Tambah Divisi</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Tambah Divisi</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Nama Divisi</label>
-                    <input name="nama" class="form-control" required placeholder="Mis. Televisi, Elektronik">
-                </div>
-                <div class="form-group">
-                    <label>Keterangan (Opsional)</label>
-                    <textarea name="keterangan" class="form-control" rows="2"></textarea>
-                </div>
+                <div class="form-group"><label>Nama Divisi</label><input name="nama" class="form-control" required placeholder="Mis. Televisi, Elektronik"></div>
+                <div class="form-group"><label>Keterangan (Opsional)</label><textarea name="keterangan" class="form-control" rows="2"></textarea></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
                 <button class="btn btn-primary" type="submit">Simpan</button>
             </div>
         </form>
@@ -84,22 +75,13 @@
     <div class="modal-dialog" role="document">
         <form id="formEdit" method="post" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <h5 class="modal-title">Edit Divisi</h5>
-                <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-            </div>
+            <div class="modal-header"><h5 class="modal-title">Edit Divisi</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Nama Divisi</label>
-                    <input name="nama" id="edit_nama" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label>Keterangan</label>
-                    <textarea name="keterangan" id="edit_keterangan" class="form-control" rows="2"></textarea>
-                </div>
+                <div class="form-group"><label>Nama Divisi</label><input name="nama" id="edit_nama" class="form-control" required></div>
+                <div class="form-group"><label>Keterangan</label><textarea name="keterangan" id="edit_keterangan" class="form-control" rows="2"></textarea></div>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-dismiss="modal">Batal</button>
+                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
                 <button class="btn btn-primary" type="submit">Simpan Perubahan</button>
             </div>
         </form>
@@ -113,9 +95,7 @@
 
 <script>
     $(function () {
-        const dt = $('#divisiTable').DataTable({
-            pageLength: 10, lengthChange: false, order: [[1, 'asc']]
-        });
+        const dt = $('#divisiTable').DataTable({ pageLength: 10, lengthChange: false, order: [[1, 'asc']] });
         $('#divisiTable_filter').hide();
         $('#tableSearch').on('keyup', function () { dt.search(this.value).draw(); });
 
@@ -131,21 +111,15 @@
             const $btn = $(this);
             const id = $btn.data('id');
             const nama = $btn.data('nama');
-
             Swal.fire({
-                title: 'Hapus divisi?',
-                html: `Divisi <b>${nama}</b> akan dihapus permanen.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonText: 'Ya, hapus',
-                cancelButtonText: 'Batal',
-                reverseButtons: true
-            }).then((r) => {
+                title: 'Hapus divisi?', html: 'Divisi <b>' + nama + '</b> akan dihapus permanen.',
+                icon: 'warning', showCancelButton: true, confirmButtonText: 'Ya, hapus', cancelButtonText: 'Batal',
+                confirmButtonColor: '#EF4444', reverseButtons: true
+            }).then(function(r) {
                 if (r.isConfirmed) {
                     const form = $('<form>', { method: 'post', action: '/admin/divisi/' + id + '/delete' });
                     form.append($('<input>', { type: 'hidden', name: '_csrf', value: '<%= csrfToken %>' }));
-                    $('body').append(form);
-                    form.trigger('submit');
+                    $('body').append(form); form.trigger('submit');
                 }
             });
         });
@@ -153,16 +127,12 @@
         const params = new URLSearchParams(location.search);
         const ok = params.get('ok'); const err = params.get('err');
         if (ok) {
-            Swal.fire({
-                toast: true, position: 'top-end', icon: 'success',
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success',
                 title: ok === 'created' ? 'Divisi dibuat' : ok === 'updated' ? 'Perubahan disimpan' : 'Divisi dihapus',
                 showConfirmButton: false, timer: 2200, timerProgressBar: true
             });
-            params.delete('ok'); history.replaceState({}, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
+            params.delete('ok'); history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
         }
-        if (err) {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: err });
-            params.delete('err'); history.replaceState({}, '', location.pathname + (params.toString() ? ('?' + params.toString()) : ''));
-        }
+        if (err) { Swal.fire({ icon: 'error', title: 'Gagal', text: err, confirmButtonColor: '#3B82F6' }); params.delete('err'); history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : '')); }
     });
 </script>

@@ -1,0 +1,120 @@
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128200;</span>Laporan Penjualan per Cabang
+    </h1>
+</div>
+
+<style>
+    .oct-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .oct-stat-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; padding: 1.25rem; box-shadow: var(--oct-shadow-sm); }
+    .oct-stat-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-text-muted); margin-bottom: 0.375rem; }
+    .oct-stat-value { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--oct-text); line-height: 1; }
+    .oct-branch-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
+    .oct-branch-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .oct-branch-body { padding: 1.25rem 1.5rem; }
+    .oct-chart-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; height: 80px; margin-top: 0.75rem; }
+    .oct-chart-bar-wrap { flex: 1; min-width: 32px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .oct-chart-bar { width: 100%; border-radius: 6px 6px 0 0; transition: height 0.6s ease; min-height: 4px; }
+    .oct-chart-label { font-size: 0.625rem; color: var(--oct-text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48px; }
+    .oct-chart-value { font-size: 0.625rem; font-weight: 600; color: var(--oct-text-2); text-align: center; }
+    .oct-sale-item { display: flex; justify-content: space-between; align-items: center; padding: 0.625rem 0; border-bottom: 1px solid var(--oct-border-light); }
+    .oct-sale-item:last-child { border-bottom: none; }
+    .oct-rank { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.8125rem; color: #fff; flex-shrink: 0; }
+    @media (max-width: 767px) { .oct-stat-row { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 575px) { .oct-stat-row { grid-template-columns: 1fr; } }
+</style>
+
+<!-- Summary Cards -->
+<div class="oct-stat-row">
+    <div class="oct-stat-card">
+        <div class="oct-stat-label">Total Cabang</div>
+        <div class="oct-stat-value"><%= summary.totalCabang %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-label">Total Pendapatan</div>
+        <div class="oct-stat-value" style="color:var(--oct-green-dark);">Rp <%= summary.totalPendapatan.toLocaleString('id-ID') %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-label">Total Transaksi</div>
+        <div class="oct-stat-value"><%= summary.totalTransaksi %></div>
+    </div>
+    <div class="oct-stat-card">
+        <div class="oct-stat-label">Item Terjual</div>
+        <div class="oct-stat-value"><%= summary.totalItemTerjual %></div>
+    </div>
+</div>
+
+<% if (branches.length === 0) { %>
+    <div class="oct-branch-card">
+        <div class="oct-branch-body text-center" style="padding:3rem;">
+            <i class="fas fa-chart-bar" style="font-size:2.5rem; color:var(--oct-text-muted); opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+            <span style="color:var(--oct-text-muted);">Belum ada data penjualan.</span>
+        </div>
+    </div>
+<% } %>
+
+<% var rankColors = ['#3B82F6', '#6366F1', '#06B6D4', '#4ADE80', '#FBBF24', '#F472B6']; %>
+<% branches.forEach(function(b, idx) { var color = rankColors[idx % rankColors.length]; var maxMonthly = Math.max.apply(null, b.monthly.map(function(m) { return m.total; }).concat([1])); %>
+<div class="oct-branch-card">
+    <div class="oct-branch-header">
+        <div style="display:flex; align-items:center; gap:0.75rem;">
+            <div class="oct-rank" style="background:<%= color %>;"><%= idx + 1 %></div>
+            <div>
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1rem; color:var(--oct-text);">
+                    <%= b.nama_cabang || b.username %>
+                </div>
+                <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
+                    <% if (b.kota) { %><%= b.kota %><% if (b.provinsi) { %>, <%= b.provinsi %><% } %><% } else { %><%= b.username %><% } %>
+                </div>
+            </div>
+        </div>
+        <div style="text-align:right;">
+            <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.25rem; color:var(--oct-green-dark);">
+                Rp <%= b.totalPendapatan.toLocaleString('id-ID') %>
+            </div>
+            <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
+                <%= b.totalTransaksi %> transaksi &bull; <%= b.totalItemTerjual %> item
+            </div>
+        </div>
+    </div>
+    <div class="oct-branch-body">
+        <% if (b.monthly.length > 0) { %>
+        <div style="font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.25rem;">
+            <i class="fas fa-chart-line" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Pendapatan per Bulan
+        </div>
+        <div class="oct-chart-row">
+            <% b.monthly.forEach(function(m) { var h = maxMonthly > 0 ? Math.max(4, Math.round((m.total / maxMonthly) * 72)) : 4; %>
+            <div class="oct-chart-bar-wrap">
+                <div class="oct-chart-value"><%= m.count %></div>
+                <div class="oct-chart-bar" style="height:<%= h %>px; background:<%= color %>;"></div>
+                <div class="oct-chart-label"><%= m.label %></div>
+            </div>
+            <% }); %>
+        </div>
+        <% } %>
+
+        <% if (b.recentSales.length > 0) { %>
+        <div style="margin-top:1rem; font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.5rem;">
+            <i class="fas fa-receipt" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Transaksi Terakhir
+        </div>
+        <% b.recentSales.forEach(function(s) { %>
+        <div class="oct-sale-item">
+            <div>
+                <div style="font-weight:600; font-size:0.875rem; color:var(--oct-text);"><%= s.kode_penjualan %></div>
+                <div style="font-size:0.75rem; color:var(--oct-text-muted);">
+                    <%= s.jumlah_item %> item
+                    <% if (s.createdAt) { %>
+                        &bull; <% var d = s.createdAt.toDate ? s.createdAt.toDate() : (s.createdAt._seconds ? new Date(s.createdAt._seconds * 1000) : new Date(s.createdAt)); %>
+                        <%= d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) %>
+                    <% } %>
+                </div>
+            </div>
+            <div style="font-weight:700; color:var(--oct-primary); font-size:0.9375rem;">
+                Rp <%= s.total_harga.toLocaleString('id-ID') %>
+            </div>
+        </div>
+        <% }); %>
+        <% } %>
+    </div>
+</div>
+<% }); %>

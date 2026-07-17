@@ -1356,4 +1356,200 @@ router.get(
     }
 );
 
+// ====================== CABANG: SALES REPORT (for Flutter) ======================
+router.get(
+    '/api/v1/cabang/sales/report',
+    requireAuthApi,
+    requireRole(['cabang']),
+    async (req, res) => {
+        try {
+            const uid = req.user.uid;
+
+            // Get all sales for this cabang
+            const snap = await db.collection('sales')
+                .where('cabang_id', '==', uid)
+                .orderBy('createdAt', 'desc')
+                .get();
+
+            const sales = snap.docs.map(d => d.data());
+
+            // Calculate totals
+            let totalPendapatan = 0;
+            let totalItemTerjual = 0;
+            const monthlyMap = {};
+
+            for (const s of sales) {
+                const total = Number(s.total_harga || s.total_bayar || 0);
+                totalPendapatan += total;
+
+                const items = Array.isArray(s.items) ? s.items : [];
+                for (const it of items) {
+                    totalItemTerjual += Number(it.qty || 0);
+                }
+
+                // Group by month
+                const createdAt = s.createdAt;
+                if (createdAt) {
+                    let date;
+                    if (createdAt.toDate) date = createdAt.toDate();
+                    else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
+                    else date = new Date(createdAt);
+
+                    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                    if (!monthlyMap[key]) monthlyMap[key] = { month: key, total: 0, count: 0 };
+                    monthlyMap[key].total += total;
+                    monthlyMap[key].count += 1;
+                }
+            }
+
+            // Sort monthly data
+            const monthly = Object.values(monthlyMap).sort((a, b) => a.month.localeCompare(b.month));
+
+            // Map month keys to readable labels
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const monthlyData = monthly.map(m => {
+                const [y, mo] = m.month.split('-');
+                return {
+                    month: m.month,
+                    label: monthNames[parseInt(mo) - 1] + ' ' + y,
+                    total: m.total,
+                    count: m.count,
+                };
+            });
+
+            // Recent transactions (last 20)
+            const recentSales = sales.slice(0, 20).map(s => ({
+                id: s.id,
+                kode_penjualan: s.kode_penjualan || '-',
+                total_harga: Number(s.total_harga || s.total_bayar || 0),
+                jumlah_item: Array.isArray(s.items) ? s.items.reduce((sum, it) => sum + Number(it.qty || 0), 0) : 0,
+                status: s.status || 'selesai',
+                keterangan: s.keterangan || '',
+                createdAt: s.createdAt || null,
+            }));
+
+            return res.json({
+                summary: {
+                    totalTransaksi: sales.length,
+                    totalPendapatan,
+                    totalItemTerjual,
+                },
+                monthly: monthlyData,
+                recentSales,
+            });
+        } catch (e) {
+            console.error('[Cabang] Sales report error:', e);
+            return res.status(500).json({ error: 'server_error' });
+        }
+    }
+);
+
+// ====================== ADMIN: SALES REPORT BY BRANCH (for web) ======================
+router.get(
+    '/api/v1/admin/sales/report',
+    requireAuthApi,
+    requireRole(['admin']),
+    async (req, res) => {
+        try {
+            // Get all sales
+            const snap = await db.collection('sales').orderBy('createdAt', 'desc').get();
+            const allSales = snap.docs.map(d => d.data());
+
+            // Get all cabang users
+            const cabangSnap = await db.collection('users').where('role', '==', 'cabang').get();
+            const cabangMap = {};
+            cabangSnap.docs.forEach(d => {
+                const u = d.data();
+                cabangMap[d.id] = {
+                    id: d.id,
+                    username: u.username || d.id,
+                    nama_cabang: u.nama_cabang || '',
+                    kota: u.kota || '',
+                    provinsi: u.provinsi || '',
+                };
+            });
+
+            // Group by cabang
+            const branchMap = {};
+            for (const s of allSales) {
+                const cid = s.cabang_id;
+                if (!cid) continue;
+                if (!branchMap[cid]) {
+                    const info = cabangMap[cid] || {};
+                    branchMap[cid] = {
+                        cabang_id: cid,
+                        username: info.username || cid,
+                        nama_cabang: info.nama_cabang || '',
+                        kota: info.kota || '',
+                        provinsi: info.provinsi || '',
+                        totalPendapatan: 0,
+                        totalTransaksi: 0,
+                        totalItemTerjual: 0,
+                        monthly: {},
+                    };
+                }
+                const branch = branchMap[cid];
+                const total = Number(s.total_harga || s.total_bayar || 0);
+                branch.totalPendapatan += total;
+                branch.totalTransaksi += 1;
+
+                const items = Array.isArray(s.items) ? s.items : [];
+                for (const it of items) {
+                    branch.totalItemTerjual += Number(it.qty || 0);
+                }
+
+                // Monthly breakdown
+                const createdAt = s.createdAt;
+                if (createdAt) {
+                    let date;
+                    if (createdAt.toDate) date = createdAt.toDate();
+                    else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
+                    else date = new Date(createdAt);
+
+                    const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                    if (!branch.monthly[key]) branch.monthly[key] = { month: key, total: 0, count: 0 };
+                    branch.monthly[key].total += total;
+                    branch.monthly[key].count += 1;
+                }
+            }
+
+            // Convert monthly maps to sorted arrays
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            const branches = Object.values(branchMap).map(b => {
+                const monthlyArr = Object.values(b.monthly)
+                    .sort((a, c) => a.month.localeCompare(c.month))
+                    .map(m => {
+                        const [y, mo] = m.month.split('-');
+                        return { ...m, label: monthNames[parseInt(mo) - 1] + ' ' + y };
+                    });
+                return { ...b, monthly: monthlyArr };
+            });
+
+            // Sort branches by total revenue descending
+            branches.sort((a, c) => c.totalPendapatan - a.totalPendapatan);
+
+            // Grand totals
+            let grandTotalPendapatan = 0, grandTotalTransaksi = 0, grandTotalItem = 0;
+            for (const b of branches) {
+                grandTotalPendapatan += b.totalPendapatan;
+                grandTotalTransaksi += b.totalTransaksi;
+                grandTotalItem += b.totalItemTerjual;
+            }
+
+            return res.json({
+                summary: {
+                    totalCabang: branches.length,
+                    totalPendapatan: grandTotalPendapatan,
+                    totalTransaksi: grandTotalTransaksi,
+                    totalItemTerjual: grandTotalItem,
+                },
+                branches,
+            });
+        } catch (e) {
+            console.error('[Admin] Sales report error:', e);
+            return res.status(500).json({ error: 'server_error' });
+        }
+    }
+);
+
 module.exports = router;

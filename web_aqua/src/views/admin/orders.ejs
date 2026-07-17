@@ -1,541 +1,225 @@
-<div class="container-fluid">
-    <style>
-        /* Glassmorphism & Modern Premium Refinements */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
+    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
+        <span style="margin-right:0.5rem;">&#128722;</span>Pesanan Cabang
+    </h1>
+</div>
 
-        .container-fluid {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
+<style>
+    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
+    .oct-card-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .oct-card-body { padding: 1.25rem 1.5rem; }
+    .oct-pill { padding: 0.375em 1em; border-radius: 50rem; font-weight: 700; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: inline-block; }
+    .oct-pill-pending { background: var(--oct-yellow); color: #1E293B; }
+    .oct-pill-approved_admin { background: #06B6D4; }
+    .oct-pill-dipaket { background: var(--oct-yellow-dark); }
+    .oct-pill-dikirim { background: var(--oct-primary); }
+    .oct-pill-selesai, .oct-pill-diterima { background: var(--oct-green-dark); }
+    .oct-pill-rejected, .oct-pill-ditolak { background: var(--oct-red); }
+    .oct-pill-lunas { background: var(--oct-green-dark); }
+    .oct-pill-bayar { background: var(--oct-yellow); color: #1E293B; }
+    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
+    .oct-table-wrap { border-collapse: separate; border-spacing: 0; }
+    .oct-table-wrap thead th { border-bottom: 2px solid var(--oct-border); background: var(--oct-bg); color: var(--oct-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.06em; padding: 0.75rem 0.625rem; }
+    .oct-table-wrap td { border-top: 1px solid var(--oct-border-light); padding: 0.625rem; vertical-align: middle; font-size: 0.875rem; }
+    .oct-table-wrap tbody tr:hover { background: var(--oct-card-hover); }
+    .oct-grand-total { background: var(--oct-bg); font-weight: 900; font-size: 1.0625rem; background: linear-gradient(135deg, var(--oct-green-dark), #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .oct-section-label { font-family: 'Poppins', sans-serif; font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--oct-primary); margin-bottom: 0.75rem; }
+</style>
 
-        .aesthetic-card {
-            border: none;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-            transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            background: var(--card-bg);
-            overflow: hidden;
-        }
-
-        .aesthetic-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08), 0 5px 15px rgba(0, 0, 0, 0.04) !important;
-        }
-
-        .aesthetic-header {
-            background: var(--header-bg) !important;
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-color) !important;
-            padding: 1.5rem !important;
-        }
-
-        .btn-modern-danger {
-            background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(231, 74, 59, 0.3);
-        }
-
-        .btn-modern-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(231, 74, 59, 0.4);
-            color: #fff;
-        }
-
-        .pill-badge {
-            padding: 0.5em 1.2em !important;
-            border-radius: 50rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: uppercase;
-            font-size: 0.75em !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-            color: white !important;
-        }
-
-        .badge-success {
-            background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
-        }
-
-        .badge-info {
-            background: linear-gradient(135deg, #36b9cc 0%, #258391 100%);
-        }
-
-        .badge-secondary {
-            background: linear-gradient(135deg, #858796 0%, #60616f 100%);
-        }
-
-        .badge-danger {
-            background: linear-gradient(135deg, #e74a3b 0%, #be2617 100%);
-        }
-
-        .badge-warning {
-            background: linear-gradient(135deg, #f6c23e 0%, #dda20a 100%);
-        }
-
-        .aesthetic-table {
-            border-collapse: separate;
-            border-spacing: 0;
-            border: none;
-        }
-
-        .aesthetic-table thead th {
-            border-bottom: 2px solid var(--border-color);
-            background: var(--table-header-bg);
-            color: var(--text-muted);
-            font-weight: 700;
-            text-transform: uppercase;
-            font-size: 0.7rem;
-            letter-spacing: 0.8px;
-            padding: 12px 8px;
-        }
-
-        .aesthetic-table tbody tr {
-            transition: background 0.2s;
-        }
-
-        .aesthetic-table tbody tr:hover {
-            background-color: var(--table-hover);
-        }
-
-        .aesthetic-table td {
-            border-top: 1px solid var(--border-color);
-            vertical-align: middle;
-            padding: 10px 8px;
-        }
-
-        .kode-highlight {
-            color: var(--primary-text);
-            background: var(--primary-bg-soft);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-        }
-
-        .grand-total-row {
-            background: var(--table-header-bg);
-        }
-
-        .grand-total-text {
-            font-size: 1.3em !important;
-            background: linear-gradient(135deg, #1cc88a 0%, #13855c 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 900 !important;
-        }
-    </style>
-    <div class="d-sm-flex align-items-center justify-content-between mb-4 mt-2">
-        <h1 class="h3 mb-0 page-title">Pesanan Cabang</h1>
-    </div>
-
-    <!-- Filter -->
-    <div class="card aesthetic-card mb-3">
-        <div class="card-body py-3">
-            <div class="d-flex align-items-center flex-wrap" style="gap:12px;">
-                <label class="font-weight-bold text-gray-700 mb-0" style="font-size:0.9rem;white-space:nowrap;">
-                    <i class="fas fa-filter mr-1"></i> Filter
-                </label>
-                <select id="filterCabang" class="form-control form-control-sm" style="max-width:200px;">
-                    <option value="">Semua Cabang</option>
-                    <% cabangList.forEach(function(c) { %>
-                        <option value="<%= c.id %>"><%= c.username %></option>
-                    <% }); %>
+<!-- Filter -->
+<div class="card" style="margin-bottom:1.25rem;">
+    <div class="card-body" style="padding:1rem 1.25rem;">
+        <!-- Search -->
+        <div class="input-group" style="margin-bottom:0.875rem;">
+            <div class="input-group-prepend"><span class="input-group-text" style="border-radius:10px 0 0 10px;"><i class="fas fa-search"></i></span></div>
+            <input id="filterSearch" class="form-control form-control-sm" placeholder="Cari kode order, nama cabang, atau status..." style="border-radius:0 10px 10px 0;">
+        </div>
+        <!-- Filters row -->
+        <div style="display:flex; flex-wrap:wrap; gap:0.625rem; align-items:flex-end;">
+            <div style="flex:1; min-width:180px;">
+                <label style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted); margin-bottom:0.25rem; display:block;">Cabang</label>
+                <select id="filterCabang" class="form-control form-control-sm" style="width:100%;">
+                    <option value="">Semua</option>
+                    <% cabangList.forEach(function(c) { %><option value="<%= c.id %>"><%= c.username %></option><% }); %>
                 </select>
-                <select id="filterStatus" class="form-control form-control-sm" style="max-width:180px;">
-                    <option value="">Semua Status</option>
+            </div>
+            <div style="flex:1; min-width:180px;">
+                <label style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted); margin-bottom:0.25rem; display:block;">Status</label>
+                <select id="filterStatus" class="form-control form-control-sm" style="width:100%;">
+                    <option value="">Semua</option>
                     <option value="pending">Pending</option>
-                    <option value="approved_admin">Diverifikasi Admin</option>
+                    <option value="approved_admin">Diverifikasi</option>
                     <option value="dipaket">Dikemas</option>
                     <option value="dikirim">Dikirim</option>
                     <option value="selesai">Selesai</option>
                     <option value="rejected">Ditolak</option>
                 </select>
-                <input type="date" id="filterDateStart" class="form-control form-control-sm" style="max-width:170px;" title="Dari tanggal">
-                <input type="date" id="filterDateEnd" class="form-control form-control-sm" style="max-width:170px;" title="Sampai tanggal">
-                <button id="filterResetBtn" class="btn btn-sm btn-outline-secondary"><i class="fas fa-undo"></i> Reset</button>
-                <span class="text-muted small ml-auto" id="filterInfo"></span>
+            </div>
+            <div style="flex:1; min-width:155px;">
+                <label style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted); margin-bottom:0.25rem; display:block;">Dari Tanggal</label>
+                <input type="date" id="filterDateStart" class="form-control form-control-sm" style="width:100%;">
+            </div>
+            <div style="flex:1; min-width:155px;">
+                <label style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted); margin-bottom:0.25rem; display:block;">Sampai Tanggal</label>
+                <input type="date" id="filterDateEnd" class="form-control form-control-sm" style="width:100%;">
+            </div>
+            <div style="display:flex; align-items:flex-end; gap:0.5rem; padding-bottom:1px;">
+                <button id="filterResetBtn" class="btn btn-sm btn-outline-secondary" style="white-space:nowrap;"><i class="fas fa-undo"></i> Reset</button>
+                <span style="color:var(--oct-text-muted); font-size:0.8125rem; white-space:nowrap;" id="filterInfo"></span>
             </div>
         </div>
     </div>
-
-    <% var list = Array.isArray(orders) ? orders : []; %>
-
-    <% if (list.length === 0) { %>
-        <div class="card shadow mb-4 aesthetic-card">
-            <div class="card-body">
-                <div class="text-center py-5">
-                    <i class="fas fa-shopping-cart fa-3x text-gray-300 mb-3"></i>
-                    <p class="mb-0 text-muted">Belum ada pesanan dari cabang.</p>
-                </div>
-            </div>
-        </div>
-    <% } %>
-
-    <% for (var si = 0; si < list.length; si++) { %>
-        <% 
-            var o = list[si]; 
-            var st = (o.status || '').toLowerCase(); 
-            var cabang = (usersMap && usersMap[o.cabang_id]) ? usersMap[o.cabang_id] : null; 
-            
-            var badgeClass = 'badge badge-secondary';
-            var paymentStatus = String(o.payment_status || '').toLowerCase();
-            if (st === 'pending') { badgeClass = 'badge badge-warning'; }
-            if (st === 'approved_admin') { badgeClass = 'badge badge-info'; }
-            if (st === 'dipaket') { badgeClass = 'badge badge-warning'; }
-            if (st === 'dikirim') { badgeClass = 'badge badge-primary'; }
-            if (st === 'selesai' || st === 'diterima') { badgeClass = 'badge badge-success'; }
-            if (st === 'rejected' || st === 'ditolak') { badgeClass = 'badge badge-danger'; }
-        %>
-
-        <div class="card aesthetic-card mb-4" data-cabang-id="<%= o.cabang_id %>" data-status="<%= st %>" data-timestamp="<%= o.createdAt ? (o.createdAt._seconds ? o.createdAt._seconds * 1000 : new Date(o.createdAt).getTime()) : 0 %>">
-            <div class="card-header aesthetic-header d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="font-weight-bold mb-2">
-                        Kode Order: <span class="kode-highlight"><%= o.kode_order %></span>
-                    </div>
-                    <div class="small text-muted mb-1" style="font-size: 0.85rem">
-                        <i class="fas fa-store mr-1"></i> Cabang: <strong><%= cabang ? cabang.username : o.cabang_id %></strong>
-                    </div>
-                    <div class="small text-muted">
-                        <i class="far fa-clock mr-1"></i> Tanggal: 
-                        <strong>
-                            <% if (o.createdAt) { %>
-                                <% 
-                                    var dateObj = new Date(o.createdAt._seconds ? o.createdAt._seconds * 1000 : o.createdAt);
-                                    var formattedDate = dateObj.toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit'});
-                                %>
-                                <%= formattedDate %>
-                            <% } else { %>
-                                -
-                            <% } %>
-                        </strong>
-                    </div>
-                </div>
-                <div class="d-flex align-items-center" style="gap:12px;">
-                    <span class="<%= badgeClass %> pill-badge">
-                        <%= (o.status || 'pending').toUpperCase() %>
-                    </span>
-                    <% if (paymentStatus === 'settlement') { %>
-                        <span class="badge badge-success pill-badge">LUNAS</span>
-                    <% } else { %>
-                        <span class="badge badge-warning pill-badge">BELUM BAYAR</span>
-                    <% } %>
-                    <form method="POST" action="/admin/orders/<%= o.id %>/delete" style="display:inline;" data-confirm-delete>
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus Pesanan" style="font-size: 1.1rem; line-height: 1;">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="card-body px-4 py-3">
-                <% if (o.keterangan) { %>
-                <div class="alert alert-info py-2 px-3 mb-3" style="font-size: 0.9rem;">
-                    <i class="fas fa-info-circle mr-2"></i><strong>Catatan Cabang:</strong> <%= o.keterangan %>
-                </div>
-                <% } %>
-                <div class="table-responsive">
-                    <table class="table aesthetic-table w-100 mb-2">
-                        <thead class="thead-light">
-                            <tr>
-                                <th style="width:48px;">#</th>
-                                <th>SKU</th>
-                                <th>Nama Produk</th>
-                                <th style="width:120px;">Satuan</th>
-                                <th style="width:120px;" class="text-right">Harga</th>
-                                <th style="width:120px;" class="text-right">Qty Order</th>
-                                <th style="width:150px;" class="text-right">Subtotal</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% var grandTotal = 0; %>
-                            <% var items = Array.isArray(o.items) ? o.items : []; 
-                               for (var i = 0; i < items.length; i++) { 
-                                   var it = items[i]; 
-                                   var sub = Number(it.subtotal || 0);
-                                   grandTotal += sub;
-                            %>
-                            <tr>
-                                <td><%= i + 1 %></td>
-                                <td><%= it.sku || '-' %></td>
-                                <td><%= it.nama_produk || '-' %></td>
-                                <td><%= it.satuan || '-' %></td>
-                                <td class="text-right">Rp <%= Number(it.harga || 0).toLocaleString('id-ID') %></td>
-                                <td class="text-right font-weight-bold"><%= it.qty %></td>
-                                <td class="text-right font-weight-bold" style="color: #4e73df;">
-                                    Rp <%= sub.toLocaleString('id-ID') %>
-                                </td>
-                            </tr>
-                            <% } %>
-                        </tbody>
-                        <tfoot>
-                            <tr class="grand-total-row">
-                                <td colspan="6" class="text-right text-uppercase"
-                                    style="font-weight: 800; color: #858796; letter-spacing: 0.5px; vertical-align: middle;">
-                                    Grand Total Pesanan
-                                </td>
-                                <td class="text-right grand-total-text">
-                                    Rp <%= grandTotal.toLocaleString('id-ID') %>
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-
-                <div class="mt-4 p-3 rounded" style="background: #f8f9fc; border: 1px solid #e3e6f0;">
-                    <h6 class="font-weight-bold text-primary text-uppercase mb-3" style="font-size: 0.85rem;">
-                        <i class="fas fa-edit mr-1"></i> Verifikasi Admin
-                    </h6>
-                    <% if (st === 'selesai' || st === 'diterima') { %>
-                        <div class="alert alert-success mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-check-circle fa-lg mr-3"></i>
-                            <div>
-                                <strong>Pesanan Selesai</strong><br>
-                                <small class="text-muted">Pesanan telah diterima cabang.</small>
-                            </div>
-                        </div>
-                    <% } else if (st === 'dikirim') { %>
-                        <div class="alert alert-primary mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-truck fa-lg mr-3"></i>
-                            <div>
-                                <strong>Pesanan Sedang Dikirim</strong><br>
-                                <small class="text-muted">Pesanan sudah dikirim oleh gudang. Menunggu konfirmasi cabang.</small>
-                            </div>
-                        </div>
-                    <% } else if (st === 'dipaket') { %>
-                        <div class="alert alert-warning mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-box fa-lg mr-3"></i>
-                            <div>
-                                <strong>Pesanan Sedang Dikemas</strong><br>
-                                <small class="text-muted">Gudang sedang memproses pengemasan. Belum dikirim.</small>
-                            </div>
-                        </div>
-                    <% } else if (st === 'approved_admin') { %>
-                        <div class="alert alert-primary mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-check-double fa-lg mr-3"></i>
-                            <div>
-                                <strong>Sudah Diverifikasi Admin</strong><br>
-                                <small class="text-muted">Pesanan sudah diverifikasi, menunggu gudang untuk mengemas.</small>
-                            </div>
-                        </div>
-                    <% } else if (st === 'pending' && paymentStatus === 'settlement') { %>
-                        <form method="POST" action="/admin/orders/<%= o.id %>" class="form-inline" data-confirm-verify>
-                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                            <input type="hidden" name="status" value="approved_admin">
-                            <div class="form-group mb-2 mr-3 flex-grow-1">
-                                <input type="text" name="keterangan"
-                                    class="form-control form-control-sm w-100 border-0 shadow-sm" placeholder="Catatan Admin (opsional)"
-                                    value="<%= o.keterangan_admin || '' %>">
-                            </div>
-                            <button type="submit" class="btn btn-primary mb-2 shadow-sm px-4">
-                                <i class="fas fa-check-double mr-1"></i> Verifikasi & Lanjut ke Gudang
-                            </button>
-                        </form>
-                    <% } else if (st === 'pending' && paymentStatus !== 'settlement') { %>
-                        <div class="alert alert-warning mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-clock fa-lg mr-3"></i>
-                            <div>
-                                <strong>Menunggu Pembayaran</strong><br>
-                                <small class="text-muted">Pesanan belum dibayar oleh cabang. Tidak bisa diverifikasi sebelum lunas.</small>
-                            </div>
-                        </div>
-                    <% } else if (st === 'rejected') { %>
-                        <div class="alert alert-danger mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-times-circle fa-lg mr-3"></i>
-                            <div>
-                                <strong>Pesanan Ditolak oleh Sales</strong><br>
-                                <small class="text-muted"><%= o.rejection_reason || '' %></small>
-                            </div>
-                        </div>
-                    <% } else { %>
-                        <div class="alert alert-info mb-0 d-flex align-items-center" style="border-radius: 10px;">
-                            <i class="fas fa-clock fa-lg mr-3"></i>
-                            <div>
-                                <strong>Menunggu Persetujuan Sales</strong><br>
-                                <small class="text-muted">Pesanan masih dalam antrian sales untuk disetujui.</small>
-                            </div>
-                        </div>
-                    <% } %>
-                </div>
-            </div>
-        </div>
-    <% } %>
 </div>
+
+<% var list = Array.isArray(orders) ? orders : []; %>
+
+<% if (list.length === 0) { %>
+    <div class="oct-card"><div class="oct-card-body text-center" style="padding:3rem;">
+        <i class="fas fa-shopping-cart" style="font-size:2.5rem; color:var(--oct-text-muted); opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+        <span style="color:var(--oct-text-muted);">Belum ada pesanan dari cabang.</span>
+    </div></div>
+<% } %>
+
+<% for (var si = 0; si < list.length; si++) { %>
+    <% var o = list[si]; var st = (o.status || '').toLowerCase(); var cabang = (usersMap && usersMap[o.cabang_id]) ? usersMap[o.cabang_id] : null; var paymentStatus = String(o.payment_status || '').toLowerCase(); %>
+    <div class="oct-card" data-cabang-id="<%= o.cabang_id %>" data-status="<%= st %>" data-timestamp="<%= o.createdAt ? (o.createdAt._seconds ? o.createdAt._seconds * 1000 : new Date(o.createdAt).getTime()) : 0 %>" data-search="<%= ((o.kode_order || '') + ' ' + (cabang ? (cabang.username + ' ' + (cabang.nama_cabang || '')) : o.cabang_id) + ' ' + (o.status || '') + ' ' + (paymentStatus === 'settlement' ? 'lunas' : 'belum bayar')).toLowerCase() %>">
+        <div class="oct-card-header">
+            <div>
+                <div style="font-weight:700; margin-bottom:0.5rem;">
+                    Kode Order: <span class="oct-kode"><%= o.kode_order %></span>
+                </div>
+                <div style="font-size:0.8125rem; color:var(--oct-text-muted); margin-bottom:0.25rem;">
+                    <i class="fas fa-store" style="margin-right:0.25rem;"></i> Cabang: <strong style="color:var(--oct-text);"><%= cabang ? cabang.username : o.cabang_id %></strong>
+                </div>
+                <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
+                    <i class="far fa-clock" style="margin-right:0.25rem;"></i>
+                    <% if (o.createdAt) { %><strong style="color:var(--oct-text);"><%= new Date(o.createdAt._seconds ? o.createdAt._seconds * 1000 : o.createdAt).toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) %></strong><% } else { %>-<% } %>
+                </div>
+            </div>
+            <div class="d-flex align-items-center" style="gap:0.625rem;">
+                <span class="oct-pill oct-pill-<%= st %>"><%= (o.status || 'pending').toUpperCase() %></span>
+                <% if (paymentStatus === 'settlement') { %><span class="oct-pill oct-pill-lunas">LUNAS</span><% } else { %><span class="oct-pill oct-pill-bayar">BELUM BAYAR</span><% } %>
+                <form method="POST" action="/admin/orders/<%= o.id %>/delete" style="display:inline;" data-confirm-delete>
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Hapus Pesanan"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+        </div>
+
+        <div class="oct-card-body">
+            <% if (o.keterangan) { %>
+                <div class="alert alert-info" style="padding:0.625rem 1rem; margin-bottom:1rem; font-size:0.875rem;">
+                    <i class="fas fa-info-circle" style="margin-right:0.375rem;"></i><strong>Catatan Cabang:</strong> <%= o.keterangan %>
+                </div>
+            <% } %>
+            <div class="table-responsive">
+                <table class="table oct-table-wrap w-100" style="margin-bottom:0.5rem;">
+                    <thead><tr>
+                        <th style="width:48px;">#</th><th>SKU</th><th>Nama Produk</th><th style="width:100px;">Satuan</th>
+                        <th style="width:110px;" class="text-right">Harga</th><th style="width:100px;" class="text-right">Qty</th><th style="width:140px;" class="text-right">Subtotal</th>
+                    </tr></thead>
+                    <tbody>
+                        <% var grandTotal = 0; var items = Array.isArray(o.items) ? o.items : []; for (var i = 0; i < items.length; i++) { var it = items[i]; var sub = Number(it.subtotal || 0); grandTotal += sub; %>
+                        <tr>
+                            <td><%= i + 1 %></td><td><%= it.sku || '-' %></td><td><%= it.nama_produk || '-' %></td><td><%= it.satuan || '-' %></td>
+                            <td class="text-right">Rp <%= Number(it.harga || 0).toLocaleString('id-ID') %></td>
+                            <td class="text-right font-weight-bold"><%= it.qty %></td>
+                            <td class="text-right font-weight-bold" style="color:var(--oct-primary);">Rp <%= sub.toLocaleString('id-ID') %></td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                    <tfoot><tr style="background:var(--oct-bg);">
+                        <td colspan="6" class="text-right text-uppercase" style="font-weight:700; color:var(--oct-text-muted); font-size:0.75rem; letter-spacing:0.05em; vertical-align:middle;">Grand Total Pesanan</td>
+                        <td class="text-right oct-grand-total">Rp <%= grandTotal.toLocaleString('id-ID') %></td>
+                    </tr></tfoot>
+                </table>
+            </div>
+
+            <div style="margin-top:1.25rem; padding:1rem; background:var(--oct-bg); border-radius:12px;">
+                <div class="oct-section-label"><i class="fas fa-edit" style="margin-right:0.375rem;"></i> Verifikasi Admin</div>
+                <% if (st === 'selesai' || st === 'diterima') { %>
+                    <div class="alert alert-success d-flex align-items-center" style="margin:0;"><i class="fas fa-check-circle" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Pesanan Selesai</strong><br><small style="color:var(--oct-text-muted);">Pesanan telah diterima cabang.</small></div></div>
+                <% } else if (st === 'dikirim') { %>
+                    <div class="alert alert-primary d-flex align-items-center" style="margin:0;"><i class="fas fa-truck" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Pesanan Sedang Dikirim</strong><br><small style="color:var(--oct-text-muted);">Menunggu konfirmasi cabang.</small></div></div>
+                <% } else if (st === 'dipaket') { %>
+                    <div class="alert alert-warning d-flex align-items-center" style="margin:0;"><i class="fas fa-box" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Sedang Dikemas</strong><br><small style="color:var(--oct-text-muted);">Gudang sedang memproses pengemasan.</small></div></div>
+                <% } else if (st === 'approved_admin') { %>
+                    <div class="alert alert-primary d-flex align-items-center" style="margin:0;"><i class="fas fa-check-double" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Sudah Diverifikasi</strong><br><small style="color:var(--oct-text-muted);">Menunggu gudang untuk mengemas.</small></div></div>
+                <% } else if (st === 'pending' && paymentStatus === 'settlement') { %>
+                    <form method="POST" action="/admin/orders/<%= o.id %>" class="form-inline" data-confirm-verify>
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="hidden" name="status" value="approved_admin">
+                        <div class="form-group mb-2 mr-3 flex-grow-1">
+                            <input type="text" name="keterangan" class="form-control form-control-sm w-100" placeholder="Catatan Admin (opsional)" value="<%= o.keterangan_admin || '' %>">
+                        </div>
+                        <button type="submit" class="btn btn-primary mb-2"><i class="fas fa-check-double" style="margin-right:0.375rem;"></i> Verifikasi & Lanjut ke Gudang</button>
+                    </form>
+                <% } else if (st === 'pending' && paymentStatus !== 'settlement') { %>
+                    <div class="alert alert-warning d-flex align-items-center" style="margin:0;"><i class="fas fa-clock" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Menunggu Pembayaran</strong><br><small style="color:var(--oct-text-muted);">Belum bisa diverifikasi sebelum lunas.</small></div></div>
+                <% } else if (st === 'rejected') { %>
+                    <div class="alert alert-danger d-flex align-items-center" style="margin:0;"><i class="fas fa-times-circle" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Ditolak oleh Sales</strong><br><small style="color:var(--oct-text-muted);"><%= o.rejection_reason || '' %></small></div></div>
+                <% } else { %>
+                    <div class="alert alert-info d-flex align-items-center" style="margin:0;"><i class="fas fa-clock" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Menunggu Persetujuan Sales</strong><br><small style="color:var(--oct-text-muted);">Pesanan masih dalam antrian sales.</small></div></div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+<% } %>
 
 <script>
     (function () {
         var params = new URLSearchParams(window.location.search);
-        var ok = params.get('ok');
-        var err = params.get('err');
-
+        var ok = params.get('ok'), err = params.get('err');
         function hasSwal() { return typeof Swal !== 'undefined' && Swal && Swal.fire; }
-
         if (ok && hasSwal()) {
-            var title = ok;
-            if (ok === 'deleted') title = 'Pesanan berhasil dihapus';
-            if (ok === 'barang_dikirim') title = 'Barang berhasil dikirim!';
-            if (ok === 'updated') title = 'Pesanan berhasil diverifikasi dan dilanjutkan ke gudang!';
-
+            var title = ok === 'deleted' ? 'Pesanan dihapus' : ok === 'barang_dikirim' ? 'Barang berhasil dikirim!' : ok === 'updated' ? 'Pesanan diverifikasi!' : ok;
             Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: title, showConfirmButton: false, timer: 3000, timerProgressBar: true });
-            params.delete('ok');
-            var url = location.pathname + (params.toString() ? '?' + params.toString() : '');
-            window.history.replaceState({}, '', url);
+            params.delete('ok'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
         }
+        if (err && hasSwal()) { Swal.fire({ icon: 'error', title: 'Gagal', text: err, confirmButtonColor: '#3B82F6' }); params.delete('err'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : '')); }
 
-        if (err && hasSwal()) {
-            Swal.fire({ icon: 'error', title: 'Gagal', text: err });
-            params.delete('err');
-            var url2 = location.pathname + (params.toString() ? '?' + params.toString() : '');
-            window.history.replaceState({}, '', url2);
-        }
-
-        // === KONFIRMASI UBAH STATUS (delegation)
         document.addEventListener('submit', function (ev) {
             var form = ev.target;
-            if (!form || !form.matches('form[data-confirm-status]')) return;
-
-            if (form.dataset.confirmHandled === '1') return;
-
-            ev.preventDefault();
-            var sel = form.querySelector('select[name="status"]');
-            var status = sel ? sel.value : '';
-
-            var msg = status ? ('Status pesanan akan diubah menjadi "' + status.toUpperCase() + '".') : 'Simpan perubahan status pesanan?';
-
-            if (hasSwal()) {
-                Swal.fire({
-                    icon: 'question',
-                    title: 'Update Status Pesanan?',
-                    text: msg,
-                    showCancelButton: true,
-                    confirmButtonText: 'Simpan',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#4e73df'
-                }).then(function (r) {
-                    if (r.isConfirmed) {
-                        form.dataset.confirmHandled = '1';
-                        form.submit();
-                    }
-                });
-            } else {
-                if (confirm(msg)) {
-                    form.dataset.confirmHandled = '1';
-                    form.submit();
-                }
+            if (form.matches('form[data-confirm-delete]')) {
+                ev.preventDefault();
+                if (form.dataset.confirmHandled === '1') return;
+                Swal.fire({ icon: 'warning', title: 'Hapus Pesanan?', text: 'Tindakan ini tidak dapat dibatalkan.', showCancelButton: true, confirmButtonText: 'Ya, Hapus', cancelButtonText: 'Batal', confirmButtonColor: '#EF4444' }).then(function(r) { if (r.isConfirmed) { form.dataset.confirmHandled = '1'; form.submit(); } });
             }
         }, true);
 
-        // === FILTER CABANG, STATUS, DAN WAKTU
         var filterCabang = document.getElementById('filterCabang');
         var filterStatus = document.getElementById('filterStatus');
         var filterDateStart = document.getElementById('filterDateStart');
         var filterDateEnd = document.getElementById('filterDateEnd');
         var filterResetBtn = document.getElementById('filterResetBtn');
         var filterInfo = document.getElementById('filterInfo');
-        var orderCards = document.querySelectorAll('.card.aesthetic-card.mb-4');
+        var orderCards = document.querySelectorAll('.oct-card[data-cabang-id]');
+
+        var filterSearch = document.getElementById('filterSearch');
 
         function applyFilter() {
-            var cabangVal = filterCabang.value;
-            var statusVal = filterStatus.value;
-            var startVal = filterDateStart.value;
-            var endVal = filterDateEnd.value;
+            var cv = filterCabang.value, sv = filterStatus.value, startVal = filterDateStart.value, endVal = filterDateEnd.value;
+            var q = (filterSearch.value || '').toLowerCase().trim();
             var startTime = startVal ? new Date(startVal + 'T00:00:00').getTime() : 0;
             var endTime = endVal ? new Date(endVal + 'T23:59:59').getTime() : Infinity;
             var visible = 0;
-
             orderCards.forEach(function(card) {
                 var match = true;
-                if (cabangVal && card.getAttribute('data-cabang-id') !== cabangVal) match = false;
-                if (match && statusVal && card.getAttribute('data-status') !== statusVal) match = false;
-                if (match) {
-                    var ts = parseInt(card.getAttribute('data-timestamp')) || 0;
-                    if (ts < startTime || ts > endTime) match = false;
-                }
+                if (cv && card.getAttribute('data-cabang-id') !== cv) match = false;
+                if (match && sv && card.getAttribute('data-status') !== sv) match = false;
+                if (match) { var ts = parseInt(card.getAttribute('data-timestamp')) || 0; if (ts < startTime || ts > endTime) match = false; }
+                if (match && q && (card.getAttribute('data-search') || '').indexOf(q) === -1) match = false;
                 card.style.display = match ? '' : 'none';
                 if (match) visible++;
             });
             filterInfo.textContent = visible + ' pesanan ditampilkan';
         }
-
         filterCabang.addEventListener('change', applyFilter);
         filterStatus.addEventListener('change', applyFilter);
         filterDateStart.addEventListener('change', applyFilter);
         filterDateEnd.addEventListener('change', applyFilter);
-        filterResetBtn.addEventListener('click', function() {
-            filterCabang.value = '';
-            filterStatus.value = '';
-            filterDateStart.value = '';
-            filterDateEnd.value = '';
-            applyFilter();
-        });
+        filterSearch.addEventListener('input', applyFilter);
+        filterResetBtn.addEventListener('click', function() { filterCabang.value = ''; filterStatus.value = ''; filterDateStart.value = ''; filterDateEnd.value = ''; filterSearch.value = ''; applyFilter(); });
         filterInfo.textContent = orderCards.length + ' pesanan ditampilkan';
-
-        // === KONFIRMASI KIRIM BARANG
-        document.addEventListener('submit', function (ev) {
-            var form = ev.target;
-            if (!form || !form.matches('form[data-confirm-send]')) return;
-
-            if (form.dataset.confirmHandled === '1') return;
-
-            ev.preventDefault();
-
-            var msg = 'Kirim barang ini ke cabang? Pesanan akan berubah status menjadi "DIKIRIM" dan akan muncul di menu Pengiriman.';
-
-            if (hasSwal()) {
-                Swal.fire({
-                    icon: 'question',
-                    title: 'Kirim Barang?',
-                    text: msg,
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Kirim',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#1cc88a'
-                }).then(function (r) {
-                    if (r.isConfirmed) {
-                        form.dataset.confirmHandled = '1';
-                        form.submit();
-                    }
-                });
-            } else {
-                if (confirm(msg)) {
-                    form.dataset.confirmHandled = '1';
-                    form.submit();
-                }
-            }
-        }, true);
-
-        // === KONFIRMASI HAPUS PESANAN
-        document.addEventListener('submit', function (ev) {
-            var form = ev.target;
-            if (!form || !form.matches('form[data-confirm-delete]')) return;
-
-            if (form.dataset.confirmHandled === '1') return;
-
-            ev.preventDefault();
-
-            var msg = 'Apakah Anda yakin ingin menghapus pesanan ini? Tindakan ini tidak dapat dibatalkan.';
-
-            if (hasSwal()) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Hapus Pesanan?',
-                    text: msg,
-                    showCancelButton: true,
-                    confirmButtonText: 'Ya, Hapus',
-                    cancelButtonText: 'Batal',
-                    confirmButtonColor: '#e74a3b'
-                }).then(function (r) {
-                    if (r.isConfirmed) {
-                        form.dataset.confirmHandled = '1';
-                        form.submit();
-                    }
-                });
-            } else {
-                if (confirm(msg)) {
-                    form.dataset.confirmHandled = '1';
-                    form.submit();
-                }
-            }
-        }, true);
     })();
 </script>

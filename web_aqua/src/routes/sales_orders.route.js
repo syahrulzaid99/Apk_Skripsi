@@ -462,4 +462,253 @@ router.post('/api/v1/sales/orders/:id/pay', requireAuthApi, requireRole(['sales'
     }
 });
 
+// ====================== SALES: REPORT PAGE (WEB) ======================
+router.get('/sales/report', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
+    try {
+        const snap = await db.collection('orders')
+            .where('created_by', '==', req.user.uid)
+            .get();
+
+        const orders = snap.docs.map(d => d.data());
+
+        // sort client-side
+        orders.sort((a, b) => {
+            const da = a.createdAt ? new Date(a.createdAt._seconds ? a.createdAt._seconds * 1000 : a.createdAt) : new Date(0);
+            const db2 = b.createdAt ? new Date(b.createdAt._seconds ? b.createdAt._seconds * 1000 : b.createdAt) : new Date(0);
+            return db2 - da;
+        });
+
+        // Get cabang names
+        const cabangIds = [...new Set(orders.map(o => o.cabang_id).filter(Boolean))];
+        const usersMap = await getUsersMapByIds(cabangIds);
+
+        // Summary
+        let totalPendapatan = 0, totalItem = 0;
+        const statusCount = { pending: 0, approved_admin: 0, dipaket: 0, dikirim: 0, selesai: 0, rejected: 0 };
+        const monthlyMap = {};
+
+        for (const o of orders) {
+            totalPendapatan += Number(o.total_harga || 0);
+            const items = Array.isArray(o.items) ? o.items : [];
+            for (const it of items) totalItem += Number(it.qty || 0);
+
+            const st = (o.status || 'pending').toLowerCase();
+            if (statusCount[st] !== undefined) statusCount[st]++;
+            else if (st === 'diterima') statusCount.selesai++;
+
+            // Monthly
+            const createdAt = o.createdAt;
+            if (createdAt) {
+                let date;
+                if (createdAt.toDate) date = createdAt.toDate();
+                else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
+                else date = new Date(createdAt);
+                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                if (!monthlyMap[key]) monthlyMap[key] = { month: key, total: 0, count: 0 };
+                monthlyMap[key].total += Number(o.total_harga || 0);
+                monthlyMap[key].count += 1;
+            }
+        }
+
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const monthly = Object.values(monthlyMap)
+            .sort((a, c) => a.month.localeCompare(c.month))
+            .map(m => {
+                const [y, mo] = m.month.split('-');
+                return { ...m, label: monthNames[parseInt(mo) - 1] + ' ' + y };
+            });
+
+        // Per-cabang breakdown
+        const cabangMap = {};
+        for (const o of orders) {
+            const cid = o.cabang_id || 'unknown';
+            if (!cabangMap[cid]) {
+                const info = usersMap[cid] || {};
+                cabangMap[cid] = {
+                    cabang_id: cid,
+                    username: info.username || cid,
+                    nama_cabang: info.nama_cabang || '',
+                    kota: info.kota || '',
+                    provinsi: info.provinsi || '',
+                    totalPendapatan: 0,
+                    totalOrders: 0,
+                    totalItem: 0,
+                    monthly: {},
+                };
+            }
+            const b = cabangMap[cid];
+            b.totalPendapatan += Number(o.total_harga || 0);
+            b.totalOrders += 1;
+            const items2 = Array.isArray(o.items) ? o.items : [];
+            for (const it of items2) b.totalItem += Number(it.qty || 0);
+
+            const createdAt2 = o.createdAt;
+            if (createdAt2) {
+                let date2;
+                if (createdAt2.toDate) date2 = createdAt2.toDate();
+                else if (createdAt2._seconds) date2 = new Date(createdAt2._seconds * 1000);
+                else date2 = new Date(createdAt2);
+                const key2 = date2.getFullYear() + '-' + String(date2.getMonth() + 1).padStart(2, '0');
+                if (!b.monthly[key2]) b.monthly[key2] = { month: key2, total: 0, count: 0 };
+                b.monthly[key2].total += Number(o.total_harga || 0);
+                b.monthly[key2].count += 1;
+            }
+        }
+
+        const branches = Object.values(cabangMap).map(b => {
+            const monthlyArr = Object.values(b.monthly)
+                .sort((a, c) => a.month.localeCompare(c.month))
+                .map(m => {
+                    const [y2, mo2] = m.month.split('-');
+                    return { ...m, label: monthNames[parseInt(mo2) - 1] + ' ' + y2 };
+                });
+            return { ...b, monthly: monthlyArr };
+        }).sort((a, c) => c.totalPendapatan - a.totalPendapatan);
+
+        res.render('sales/report', {
+            title: 'Laporan Penjualan',
+            csrfToken: req.csrfToken(),
+            user: req.user,
+            profile: req.profile,
+            orders,
+            usersMap,
+            summary: {
+                totalOrders: orders.length,
+                totalPendapatan,
+                totalItem,
+            },
+            statusCount,
+            monthly,
+            branches,
+        });
+    } catch (e) {
+        console.error('[Sales] Report error:', e);
+        res.status(500).send('Error generating report');
+    }
+});
+
+// ====================== SALES: REPORT API (FLUTTER) ======================
+router.get('/api/v1/sales/report', requireAuthApi, requireRole(['sales']), async (req, res) => {
+    try {
+        const snap = await db.collection('orders')
+            .where('created_by', '==', req.user.uid)
+            .get();
+
+        const orders = snap.docs.map(d => d.data());
+
+        // sort client-side
+        orders.sort((a, b) => {
+            const da = a.createdAt ? new Date(a.createdAt._seconds ? a.createdAt._seconds * 1000 : a.createdAt) : new Date(0);
+            const db2 = b.createdAt ? new Date(b.createdAt._seconds ? b.createdAt._seconds * 1000 : b.createdAt) : new Date(0);
+            return db2 - da;
+        });
+
+        // Get cabang names
+        const cabangIds = [...new Set(orders.map(o => o.cabang_id).filter(Boolean))];
+        const usersMap = await getUsersMapByIds(cabangIds);
+
+        let totalPendapatan = 0, totalItem = 0;
+        const monthlyMap = {};
+
+        for (const o of orders) {
+            totalPendapatan += Number(o.total_harga || 0);
+            const items = Array.isArray(o.items) ? o.items : [];
+            for (const it of items) totalItem += Number(it.qty || 0);
+
+            const createdAt = o.createdAt;
+            if (createdAt) {
+                let date;
+                if (createdAt.toDate) date = createdAt.toDate();
+                else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
+                else date = new Date(createdAt);
+                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                if (!monthlyMap[key]) monthlyMap[key] = { month: key, total: 0, count: 0 };
+                monthlyMap[key].total += Number(o.total_harga || 0);
+                monthlyMap[key].count += 1;
+            }
+        }
+
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const monthly = Object.values(monthlyMap)
+            .sort((a, c) => a.month.localeCompare(c.month))
+            .map(m => {
+                const [y, mo] = m.month.split('-');
+                return { ...m, label: monthNames[parseInt(mo) - 1] + ' ' + y };
+            });
+
+        const recentOrders = orders.slice(0, 50).map(o => ({
+            id: o.id,
+            kode_order: o.kode_order,
+            cabang_username: o.cabang_username || usersMap[o.cabang_id]?.username || o.cabang_id,
+            cabang_nama: usersMap[o.cabang_id]?.nama_cabang || '',
+            status: o.status || 'pending',
+            payment_status: o.payment_status || 'pending',
+            total_harga: Number(o.total_harga || 0),
+            jumlah_item: Array.isArray(o.items) ? o.items.reduce((s, it) => s + Number(it.qty || 0), 0) : 0,
+            createdAt: o.createdAt || null,
+        }));
+
+        // Per-cabang breakdown
+        const cabangMap = {};
+        for (const o of orders) {
+            const cid = o.cabang_id || 'unknown';
+            if (!cabangMap[cid]) {
+                const info = usersMap[cid] || {};
+                cabangMap[cid] = {
+                    cabang_id: cid,
+                    username: info.username || cid,
+                    nama_cabang: info.nama_cabang || '',
+                    kota: info.kota || '',
+                    provinsi: info.provinsi || '',
+                    totalPendapatan: 0,
+                    totalOrders: 0,
+                    totalItem: 0,
+                    monthly: {},
+                };
+            }
+            const b = cabangMap[cid];
+            b.totalPendapatan += Number(o.total_harga || 0);
+            b.totalOrders += 1;
+            const items = Array.isArray(o.items) ? o.items : [];
+            for (const it of items) b.totalItem += Number(it.qty || 0);
+
+            const createdAt = o.createdAt;
+            if (createdAt) {
+                let date;
+                if (createdAt.toDate) date = createdAt.toDate();
+                else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
+                else date = new Date(createdAt);
+                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
+                if (!b.monthly[key]) b.monthly[key] = { month: key, total: 0, count: 0 };
+                b.monthly[key].total += Number(o.total_harga || 0);
+                b.monthly[key].count += 1;
+            }
+        }
+
+        const branches = Object.values(cabangMap).map(b => {
+            const monthlyArr = Object.values(b.monthly)
+                .sort((a, c) => a.month.localeCompare(c.month))
+                .map(m => {
+                    const [y, mo] = m.month.split('-');
+                    return { ...m, label: monthNames[parseInt(mo) - 1] + ' ' + y };
+                });
+            return { ...b, monthly: monthlyArr };
+        }).sort((a, c) => c.totalPendapatan - a.totalPendapatan);
+
+        return res.json({
+            summary: {
+                totalOrders: orders.length,
+                totalPendapatan,
+                totalItem,
+            },
+            monthly,
+            branches,
+            recentOrders,
+        });
+    } catch (e) {
+        console.error('[Sales] Report API error:', e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
 module.exports = router;

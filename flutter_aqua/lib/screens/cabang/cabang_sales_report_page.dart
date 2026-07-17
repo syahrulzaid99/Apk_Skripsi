@@ -1,0 +1,631 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import '../../services/api_client.dart';
+import '../../widgets/shared.dart';
+import '../../widgets/smooth_list_item.dart';
+
+class CabangSalesReportPage extends StatefulWidget {
+  const CabangSalesReportPage({super.key});
+
+  @override
+  State<CabangSalesReportPage> createState() => _CabangSalesReportPageState();
+}
+
+class _CabangSalesReportPageState extends State<CabangSalesReportPage>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Laporan'),
+        centerTitle: true,
+        bottom: TabBar(
+          controller: _tabCtrl,
+          tabs: const [
+            Tab(icon: Icon(Icons.sell), text: 'Penjualan'),
+            Tab(icon: Icon(Icons.shopping_cart), text: 'Pembelian'),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabCtrl,
+        children: const [
+          _PenjualanTab(),
+          _PembelianTab(),
+        ],
+      ),
+    );
+  }
+}
+
+// ═══════════════════════ PENJUALAN TAB ═══════════════════════
+
+class _PenjualanTab extends StatefulWidget {
+  const _PenjualanTab();
+
+  @override
+  State<_PenjualanTab> createState() => _PenjualanTabState();
+}
+
+class _PenjualanTabState extends State<_PenjualanTab>
+    with AutomaticKeepAliveClientMixin {
+  Map<String, dynamic>? _summary;
+  List<Map<String, dynamic>> _monthly = [];
+  List<Map<String, dynamic>> _recentSales = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  void _snack(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  Future<void> _fetch() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ApiClient.getCabangSalesReport();
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        _summary = data['summary'] as Map<String, dynamic>? ?? {};
+        _monthly = (data['monthly'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+        _recentSales = (data['recentSales'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      } else {
+        _snack('Gagal memuat laporan');
+      }
+    } catch (_) {
+      _snack('Gagal terhubung ke server');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final cs = Theme.of(context).colorScheme;
+
+    if (_loading) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: List.generate(
+          3,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ShimmerBox(
+              width: double.infinity,
+              height: 100,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetch,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildSummary(cs),
+          if (_monthly.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _sectionTitle(cs, Icons.bar_chart, 'Pendapatan per Bulan'),
+            const SizedBox(height: 8),
+            _buildChart(cs),
+          ],
+          if (_recentSales.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _sectionTitle(cs, Icons.receipt_long, 'Transaksi Terakhir'),
+            const SizedBox(height: 8),
+            ..._recentSales.map((s) => _saleCard(s, cs)),
+          ],
+          if ((_summary?['totalTransaksi'] ?? 0) == 0)
+            _emptyState(cs, Icons.sell_outlined, 'Belum ada penjualan'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSummary(ColorScheme cs) {
+    final total = toInt(_summary?['totalPendapatan']);
+    final tx = _summary?['totalTransaksi'] ?? 0;
+    final items = _summary?['totalItemTerjual'] ?? 0;
+
+    return Column(children: [
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [cs.primary, cs.primary.withOpacity(0.7)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Total Pendapatan',
+              style: TextStyle(
+                  color: cs.onPrimary.withOpacity(0.8),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 4),
+          Text(formatCurrency(total),
+              style: TextStyle(
+                  color: cs.onPrimary,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5)),
+        ]),
+      ),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: _statChip(Icons.receipt, 'Transaksi', '$tx', cs)),
+        const SizedBox(width: 10),
+        Expanded(
+            child: _statChip(Icons.inventory_2, 'Item Terjual', '$items', cs)),
+      ]),
+    ]);
+  }
+
+  Widget _buildChart(ColorScheme cs) {
+    final maxVal = _monthly
+        .map((m) => toInt(m['total']))
+        .fold<int>(1, (a, b) => a > b ? a : b);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Column(children: [
+        SizedBox(
+          height: 100,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: _monthly.map((m) {
+              final total = toInt(m['total']);
+              final h = maxVal > 0 ? (total / maxVal) * 88 : 0.0;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      if (total > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(_compact(total),
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.outline)),
+                        ),
+                      Container(
+                        height: h < 4 ? 4 : h,
+                        decoration: BoxDecoration(
+                          color: cs.primary.withOpacity(0.8),
+                          borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(6)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _monthly.map((m) {
+            return Expanded(
+              child: Text((m['label'] ?? '').toString().split(' ').first,
+                  style: TextStyle(fontSize: 9, color: cs.outline),
+                  textAlign: TextAlign.center,
+                  overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+        ),
+      ]),
+    );
+  }
+
+  Widget _saleCard(Map<String, dynamic> s, ColorScheme cs) {
+    final dateStr = _formatDate(s['createdAt']);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.green.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(Icons.sell, color: Colors.green, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(s['kode_penjualan'] ?? '-',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: cs.onSurface)),
+              Text(
+                  '${s['jumlah_item'] ?? 0} item${dateStr.isNotEmpty ? ' · $dateStr' : ''}',
+                  style: TextStyle(fontSize: 12, color: cs.outline)),
+            ],
+          ),
+        ),
+        Text(formatCurrency(toInt(s['total_harga'])),
+            style: TextStyle(
+                fontWeight: FontWeight.bold, fontSize: 15, color: Colors.green)),
+      ]),
+    );
+  }
+}
+
+// ═══════════════════════ PEMBELIAN TAB ═══════════════════════
+
+class _PembelianTab extends StatefulWidget {
+  const _PembelianTab();
+
+  @override
+  State<_PembelianTab> createState() => _PembelianTabState();
+}
+
+class _PembelianTabState extends State<_PembelianTab>
+    with AutomaticKeepAliveClientMixin {
+  List<Map<String, dynamic>> _orders = [];
+  bool _loading = true;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetch();
+  }
+
+  void _snack(String msg) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
+  }
+
+  Future<void> _fetch() async {
+    setState(() => _loading = true);
+    try {
+      final res = await ApiClient.getOrders();
+      if (res.statusCode == 200) {
+        _orders = (jsonDecode(res.body)['orders'] as List? ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      } else {
+        _snack('Gagal memuat pesanan');
+      }
+    } catch (_) {
+      _snack('Gagal terhubung ke server');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final cs = Theme.of(context).colorScheme;
+
+    if (_loading) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: List.generate(
+          3,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: ShimmerBox(
+              width: double.infinity,
+              height: 80,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Summary
+    int totalBeli = 0, totalItem = 0;
+    for (final o in _orders) {
+      totalBeli += toInt(o['total_harga']);
+      final items = o['items'] as List? ?? [];
+      for (final it in items) {
+        totalItem += toInt(it['qty']);
+      }
+    }
+
+    return RefreshIndicator(
+      onRefresh: _fetch,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Summary
+          Row(children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.shopping_cart, color: Colors.orange.shade700, size: 24),
+                      const SizedBox(height: 8),
+                      Text('Total Pembelian',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: cs.outline,
+                              fontWeight: FontWeight.w500)),
+                      Text(formatCurrency(totalBeli),
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade700)),
+                    ]),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cs.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: cs.primary.withOpacity(0.15)),
+                ),
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.inventory_2, color: cs.primary, size: 24),
+                      const SizedBox(height: 8),
+                      Text('Item Dibeli',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: cs.outline,
+                              fontWeight: FontWeight.w500)),
+                      Text('$totalItem',
+                          style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: cs.primary)),
+                    ]),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 20),
+          _sectionTitle(cs, Icons.list_alt, 'Riwayat Pembelian'),
+          const SizedBox(height: 8),
+          if (_orders.isEmpty)
+            _emptyState(cs, Icons.shopping_cart_outlined,
+                'Belum ada pesanan pembelian'),
+          ..._orders.map((o) => _orderCard(o, cs)),
+        ],
+      ),
+    );
+  }
+
+  Widget _orderCard(Map<String, dynamic> o, ColorScheme cs) {
+    final status = (o['status'] ?? 'pending').toString().toLowerCase();
+    final dateStr = _formatDate(o['createdAt']);
+    final itemCount = o['items'] is List ? (o['items'] as List).length : 0;
+
+    Color statusColor;
+    String statusText;
+    switch (status) {
+      case 'approved_admin':
+        statusColor = Colors.cyan;
+        statusText = 'DIVERIFIKASI';
+        break;
+      case 'dipaket':
+        statusColor = Colors.orange;
+        statusText = 'DIKEMAS';
+        break;
+      case 'dikirim':
+        statusColor = cs.primary;
+        statusText = 'DIKIRIM';
+        break;
+      case 'selesai':
+      case 'diterima':
+        statusColor = Colors.green;
+        statusText = 'SELESAI';
+        break;
+      case 'rejected':
+        statusColor = Colors.red;
+        statusText = 'DITOLAK';
+        break;
+      default:
+        statusColor = Colors.amber;
+        statusText = 'PENDING';
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+      ),
+      child: Row(children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: Colors.orange.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child:
+              Icon(Icons.shopping_cart, color: Colors.orange.shade700, size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(o['kode_order'] ?? '-',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: cs.onSurface)),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(statusText,
+                      style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor)),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Text('$itemCount item${dateStr.isNotEmpty ? ' · $dateStr' : ''}',
+                  style: TextStyle(fontSize: 12, color: cs.outline)),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(formatCurrency(toInt(o['total_harga'])),
+            style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                color: Colors.orange.shade700)),
+      ]),
+    );
+  }
+}
+
+// ═══════════════════════ SHARED HELPERS ═══════════════════════
+
+Widget _sectionTitle(ColorScheme cs, IconData icon, String text) {
+  return Row(children: [
+    Icon(icon, size: 18, color: cs.primary),
+    const SizedBox(width: 6),
+    Text(text, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+  ]);
+}
+
+Widget _statChip(IconData icon, String label, String value, ColorScheme cs) {
+  return Container(
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: cs.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+    ),
+    child: Row(children: [
+      Icon(icon, size: 20, color: cs.primary),
+      const SizedBox(width: 10),
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 11, color: cs.outline, fontWeight: FontWeight.w500)),
+        Text(value,
+            style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: cs.onSurface)),
+      ]),
+    ]),
+  );
+}
+
+Widget _emptyState(ColorScheme cs, IconData icon, String text) {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      child: Column(children: [
+        Icon(icon, size: 64, color: cs.outline.withOpacity(0.4)),
+        const SizedBox(height: 12),
+        Text(text, style: TextStyle(color: cs.outline, fontSize: 15)),
+      ]),
+    ),
+  );
+}
+
+String _formatDate(dynamic createdAt) {
+  if (createdAt == null) return '';
+  try {
+    DateTime dt;
+    if (createdAt is Map && createdAt['_seconds'] != null) {
+      dt = DateTime.fromMillisecondsSinceEpoch(
+          (createdAt['_seconds'] as int) * 1000);
+    } else {
+      dt = DateTime.parse(createdAt.toString());
+    }
+    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+  } catch (_) {
+    return '';
+  }
+}
+
+String _compact(int v) {
+  if (v >= 1000000000) return '${(v / 1000000000).toStringAsFixed(1)}M';
+  if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}jt';
+  if (v >= 1000) return '${(v / 1000).toStringAsFixed(0)}rb';
+  return v.toString();
+}
