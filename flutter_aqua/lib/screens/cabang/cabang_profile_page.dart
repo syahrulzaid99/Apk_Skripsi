@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../config/theme.dart';
 import '../../services/api_client.dart';
-import '../../widgets/shared.dart' show isConnectionError, showChangeServerDialog;
+import '../../widgets/shared.dart' show isConnectionError, showChangeServerDialog, OctaviaCard, SectionHeading;
 import '../settings/settings_page.dart';
-import 'cabang_sales_report_page.dart';
 
 class CabangProfilePage extends StatefulWidget {
   const CabangProfilePage({super.key});
@@ -43,7 +44,6 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
     }
   }
 
-  /// Tampilkan dialog ubah IP server, lalu ulangi fetch profil jika URL berubah.
   Future<void> _changeServerAndRetry() async {
     final changed = await showChangeServerDialog(context);
     if (changed && mounted) _fetchProfile();
@@ -52,7 +52,9 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_loading && _user == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: CircularProgressIndicator(color: OctaviaColors.primary),
+      );
     }
     final cs = Theme.of(context).colorScheme;
     if (_user == null) {
@@ -62,17 +64,25 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                _connectionFailed ? Icons.cloud_off : Icons.error_outline,
-                size: 48,
-                color: cs.error,
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(
+                  _connectionFailed ? Icons.cloud_off : Icons.error_outline,
+                  size: 32,
+                  color: const Color(0xFFEF4444),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               Text(
                 _connectionFailed
                     ? 'Gagal terhubung ke server'
                     : 'Gagal memuat profil',
-                style: const TextStyle(
+                style: GoogleFonts.poppins(
                     fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 4),
@@ -80,10 +90,10 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
                 _connectionFailed
                     ? 'Periksa IP server backend Anda.'
                     : 'Terjadi kesalahan saat memuat profil.',
-                style: TextStyle(color: cs.onSurfaceVariant),
+                style: GoogleFonts.inter(color: cs.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               if (_connectionFailed)
                 FilledButton.icon(
                   onPressed: _changeServerAndRetry,
@@ -102,76 +112,126 @@ class _CabangProfilePageState extends State<CabangProfilePage> {
     }
 
     final u = _user!;
-    return ListView(padding: const EdgeInsets.all(16), children: [
-      CircleAvatar(
-          radius: 40,
-          backgroundColor: cs.primaryContainer,
-          child: Icon(Icons.person, size: 40, color: cs.onPrimaryContainer)),
-      const SizedBox(height: 16),
-      Text(u['username'] ?? '-',
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-      Text((u['role'] ?? '-').toString().toUpperCase(),
-          textAlign: TextAlign.center,
-          style: TextStyle(color: cs.primary, fontWeight: FontWeight.w600)),
-      const SizedBox(height: 24),
-      Card(
-          child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildItem(cs, 'Nama Cabang', u['nama_cabang']),
-                    const Divider(),
-                    _buildItem(cs, 'Provinsi', u['provinsi']),
-                    const Divider(),
-                    _buildItem(cs, 'Kota', u['kota']),
-                    const Divider(),
-                    _buildItem(cs, 'Jalan', u['jalan']),
-                  ]))),
-      const SizedBox(height: 16),
-      FilledButton.icon(
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        // ── Profile header ──
+        Center(
+          child: Column(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: OctaviaColors.primary.withValues(alpha: 0.12),
+                  border: Border.all(
+                    color: OctaviaColors.primary.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: Icon(Icons.person, size: 40, color: OctaviaColors.primary),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                u['username'] ?? '-',
+                style: GoogleFonts.poppins(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: OctaviaColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusPill),
+                ),
+                child: Text(
+                  (u['role'] ?? '-').toString().toUpperCase(),
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: OctaviaColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // ── Info card ──
+        OctaviaCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionHeading(icon: Icons.info_outline, title: 'Informasi Cabang'),
+              const SizedBox(height: 14),
+              _buildItem(cs, 'Nama Cabang', u['nama_cabang']),
+              Divider(color: cs.outlineVariant, height: 1),
+              _buildItem(cs, 'Provinsi', u['provinsi']),
+              Divider(color: cs.outlineVariant, height: 1),
+              _buildItem(cs, 'Kota', u['kota']),
+              Divider(color: cs.outlineVariant, height: 1),
+              _buildItem(cs, 'Jalan', u['jalan']),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // ── Action buttons ──
+        FilledButton.icon(
           onPressed: () async {
-            final changed = await Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => EditProfilePage(user: u)));
+            final changed = await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => EditProfilePage(user: u)),
+            );
             if (changed == true) _fetchProfile();
           },
-          icon: const Icon(Icons.edit),
-          label: const Text('Edit Profil')),
-      const SizedBox(height: 12),
-      OutlinedButton.icon(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const CabangSalesReportPage()),
-          );
-        },
-        icon: const Icon(Icons.assessment),
-        label: const Text('Laporan Penjualan & Pembelian'),
-      ),
-      const SizedBox(height: 12),
-      OutlinedButton.icon(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsPage()),
-          );
-        },
-        icon: const Icon(Icons.settings),
-        label: const Text('Pengaturan'),
-      ),
-    ]);
+          icon: const Icon(Icons.edit, size: 18),
+          label: const Text('Edit Profil'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            );
+          },
+          icon: const Icon(Icons.settings, size: 18),
+          label: const Text('Pengaturan'),
+        ),
+      ],
+    );
   }
 
   Widget _buildItem(ColorScheme cs, String label, dynamic value) {
     return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
-          const SizedBox(height: 4),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-              value?.toString().isNotEmpty == true ? value.toString() : '-',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-        ]));
+            label,
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: cs.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            value?.toString().isNotEmpty == true ? value.toString() : '-',
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -222,7 +282,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         'provinsi': _provCtrl.text.trim(),
         'kota': _kotaCtrl.text.trim(),
         'jalan': _jalanCtrl.text.trim(),
-        'password': _passCtrl.text
+        'password': _passCtrl.text,
       };
       final res = await ApiClient.updateProfile(data);
       if (res.statusCode == 200) {
@@ -240,46 +300,92 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-        appBar: AppBar(title: const Text('Edit Profil')),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
+      appBar: AppBar(title: const Text('Edit Profil')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Nama Cabang',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(controller: _namaCtrl),
+          const SizedBox(height: 16),
+          Text(
+            'Provinsi',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(controller: _provCtrl),
+          const SizedBox(height: 16),
+          Text(
+            'Kota',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(controller: _kotaCtrl),
+          const SizedBox(height: 16),
+          Text(
+            'Jalan',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(controller: _jalanCtrl),
+          const SizedBox(height: 16),
+          Text(
+            'Password Baru (Opsional)',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 6),
           TextField(
-              controller: _namaCtrl,
-              decoration: const InputDecoration(labelText: 'Nama Cabang')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _provCtrl,
-              decoration: const InputDecoration(labelText: 'Provinsi')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _kotaCtrl,
-              decoration: const InputDecoration(labelText: 'Kota')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _jalanCtrl,
-              decoration: const InputDecoration(labelText: 'Jalan')),
-          const SizedBox(height: 12),
-          TextField(
-              controller: _passCtrl,
-              obscureText: _obscure,
-              decoration: InputDecoration(
-                  labelText: 'Password Baru (Opsional)',
-                  suffixIcon: IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility
-                          : Icons.visibility_off),
-                      onPressed: () =>
-                          setState(() => _obscure = !_obscure)))),
-          const SizedBox(height: 24),
+            controller: _passCtrl,
+            obscureText: _obscure,
+            decoration: InputDecoration(
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscure ? Icons.visibility : Icons.visibility_off,
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscure = !_obscure),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
           FilledButton.icon(
-              onPressed: _loading ? null : _save,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.save),
-              label: const Text('Simpan Perubahan')),
-        ]));
+            onPressed: _loading ? null : _save,
+            icon: _loading
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save),
+            label: const Text('Simpan Perubahan'),
+          ),
+        ],
+      ),
+    );
   }
 }

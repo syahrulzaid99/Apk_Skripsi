@@ -107,7 +107,7 @@
             $('#edit_keterangan').val($btn.data('keterangan'));
         });
 
-        $('.btn-del').on('click', function () {
+        $('#divisiTable').on('click', '.btn-del', function () {
             const $btn = $(this);
             const id = $btn.data('id');
             const nama = $btn.data('nama');

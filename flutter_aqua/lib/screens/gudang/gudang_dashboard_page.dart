@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../config/theme.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
 import '../../widgets/smooth_list_item.dart';
@@ -17,7 +19,10 @@ class _GudangDashboardPageState extends State<GudangDashboardPage> {
   bool _loading = true;
 
   @override
-  void initState() { super.initState(); _fetch(); }
+  void initState() {
+    super.initState();
+    _fetch();
+  }
 
   Future<void> _fetch() async {
     setState(() => _loading = true);
@@ -28,35 +33,59 @@ class _GudangDashboardPageState extends State<GudangDashboardPage> {
         _stats = data['stats'] as Map<String, dynamic>?;
       }
 
-      // Ambil 5 order terbaru untuk ringkasan
       final ordersRes = await ApiClient.getGudangOrders();
       if (ordersRes.statusCode == 200) {
-        final all = (jsonDecode(ordersRes.body)['orders'] as List? ?? []).cast<Map<String, dynamic>>();
+        final all = (jsonDecode(ordersRes.body)['orders'] as List? ?? [])
+            .cast<Map<String, dynamic>>();
         _recentOrders = all.take(5).toList();
       }
     } catch (_) {}
-    finally { if (mounted) setState(() => _loading = false); }
+    finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Row(children: [
-          Expanded(child: ShimmerBox(width: double.infinity, height: 100, borderRadius: BorderRadius.circular(12))),
-          const SizedBox(width: 12),
-          Expanded(child: ShimmerBox(width: double.infinity, height: 100, borderRadius: BorderRadius.circular(12))),
-        ]),
-        const SizedBox(height: 12),
-        ShimmerBox(width: double.infinity, height: 100, borderRadius: BorderRadius.circular(12)),
-        const SizedBox(height: 20),
-        for (int i = 0; i < 3; i++) ...[
-          ShimmerBox(width: double.infinity, height: 60, borderRadius: BorderRadius.circular(12)),
-          const SizedBox(height: 8),
+    if (_loading) {
+      return ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Row(children: [
+            Expanded(
+              child: ShimmerBox(
+                width: double.infinity,
+                height: 100,
+                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: ShimmerBox(
+                width: double.infinity,
+                height: 100,
+                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 16),
+          ShimmerBox(
+            width: double.infinity,
+            height: 100,
+            borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+          ),
+          const SizedBox(height: 24),
+          for (int i = 0; i < 3; i++) ...[
+            ShimmerBox(
+              width: double.infinity,
+              height: 60,
+              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+            ),
+            const SizedBox(height: 8),
+          ],
         ],
-      ],
-    );
+      );
+    }
     final cs = Theme.of(context).colorScheme;
     final readyToPack = _stats?['readyToPack'] ?? 0;
     final packed = _stats?['packed'] ?? 0;
@@ -64,67 +93,100 @@ class _GudangDashboardPageState extends State<GudangDashboardPage> {
 
     return RefreshIndicator(
       onRefresh: _fetch,
-      child: ListView(padding: const EdgeInsets.all(16), children: [
-        // Stat cards
-        Row(children: [
-          Expanded(child: _statCard(Icons.inventory, 'Siap Dikemas', '$readyToPack', Colors.blue, cs)),
-          const SizedBox(width: 12),
-          Expanded(child: _statCard(Icons.inventory_2, 'Dikemas', '$packed', Colors.orange, cs)),
-        ]),
-        const SizedBox(height: 12),
-        _statCard(Icons.local_shipping, 'Dalam Pengiriman', '$sent', Colors.green, cs, fullWidth: true),
-        const SizedBox(height: 20),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          // ── Greeting ──
+          Text(
+            'Gudang 📦',
+            style: GoogleFonts.poppins(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Kelola pengemasan dan pengiriman',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: cs.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 20),
 
-        // Recent orders
-        if (_recentOrders.isNotEmpty) ...[
-          Text('Pesanan Terbaru', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: cs.onSurface)),
-          const SizedBox(height: 8),
-          for (final o in _recentOrders)
-            Card(margin: const EdgeInsets.only(bottom: 8), child: ListTile(
-              dense: true,
-              leading: CircleAvatar(
-                backgroundColor: _statusColor(o['status']),
-                child: Icon(_statusIcon(o['status']), color: Colors.white, size: 18),
+          // ── Stat cards ──
+          Row(children: [
+            Expanded(
+              child: OctaviaStatCard(
+                icon: Icons.inventory,
+                label: 'Siap Dikemas',
+                value: '$readyToPack',
+                color: OctaviaColors.primary,
               ),
-              title: Text(o['kode_order'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(
-                '${o['cabang_nama'] ?? o['cabang_username'] ?? '-'} • ${o['jumlah_item'] ?? 0} item',
-                style: TextStyle(fontSize: 12, color: cs.outline),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: OctaviaStatCard(
+                icon: Icons.inventory_2,
+                label: 'Dikemas',
+                value: '$packed',
+                color: const Color(0xFFF59E0B),
               ),
-              trailing: Text(formatCurrency(o['total_harga'] ?? 0), style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: cs.primary)),
-            )),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          OctaviaStatCard(
+            icon: Icons.local_shipping,
+            label: 'Dalam Pengiriman',
+            value: '$sent',
+            color: OctaviaColors.accentGreen,
+          ),
+          const SizedBox(height: 24),
+
+          // ── Recent orders ──
+          if (_recentOrders.isNotEmpty) ...[
+            SectionHeading(icon: Icons.receipt_long, title: 'Pesanan Terbaru'),
+            const SizedBox(height: 10),
+            for (final o in _recentOrders)
+              OctaviaMiniCard(
+                icon: _statusIcon(o['status']),
+                iconColor: _statusColor(o['status']),
+                title: o['kode_order'] ?? '-',
+                subtitle:
+                    '${o['cabang_nama'] ?? o['cabang_username'] ?? '-'} • ${o['jumlah_item'] ?? 0} item',
+                trailing: formatCurrency(o['total_harga'] ?? 0),
+                trailingColor: OctaviaColors.primary,
+              ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 
   Color _statusColor(String? status) {
     switch ((status ?? '').toLowerCase()) {
-      case 'approved_admin': return Colors.blue;
-      case 'dipaket': return Colors.orange;
-      case 'dikirim': return Colors.green;
-      default: return Colors.grey;
+      case 'approved_admin':
+        return OctaviaColors.primary;
+      case 'dipaket':
+        return const Color(0xFFF59E0B);
+      case 'dikirim':
+        return OctaviaColors.accentGreen;
+      default:
+        return OctaviaColors.textMuted;
     }
   }
 
   IconData _statusIcon(String? status) {
     switch ((status ?? '').toLowerCase()) {
-      case 'approved_admin': return Icons.check_circle;
-      case 'dipaket': return Icons.inventory_2;
-      case 'dikirim': return Icons.local_shipping;
-      default: return Icons.help;
+      case 'approved_admin':
+        return Icons.check_circle;
+      case 'dipaket':
+        return Icons.inventory_2;
+      case 'dikirim':
+        return Icons.local_shipping;
+      default:
+        return Icons.help_outline;
     }
-  }
-
-  Widget _statCard(IconData icon, String label, String value, MaterialColor color, ColorScheme cs, {bool fullWidth = false}) {
-    final card = Card(color: color.shade50, child: Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-      Icon(icon, size: 32, color: color),
-      const SizedBox(width: 12),
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color.shade800)),
-        Text(label, style: TextStyle(color: color.shade600)),
-      ]),
-    ])));
-    return fullWidth ? card : card;
   }
 }

@@ -208,7 +208,7 @@
             $('#edit_password').val('');
         });
 
-        $('.btn-del').on('click', function () {
+        $('#usersTable').on('click', '.btn-del', function () {
             const $btn = $(this);
             const id = $btn.data('id');
             const uname = $btn.data('username');

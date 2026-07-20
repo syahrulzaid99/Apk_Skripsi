@@ -204,7 +204,7 @@
             if (img) { $('#edit_preview').attr('src', img).show(); } else { $('#edit_preview').hide(); }
         });
 
-        $('.btn-del').on('click', function () {
+        $('#productsTable').on('click', '.btn-del', function () {
             const $btn = $(this);
             const id = $btn.data('id');
             const sku = $btn.data('sku');

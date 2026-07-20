@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../config/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart' show isConnectionError, showChangeServerDialog;
@@ -30,11 +32,11 @@ class _LoginPageState extends State<LoginPage>
     super.initState();
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 800),
     );
     _fadeIn = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic);
     _slideUp = Tween<Offset>(
-      begin: const Offset(0, 0.2),
+      begin: const Offset(0, 0.15),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
     _animCtrl.forward();
@@ -96,7 +98,9 @@ class _LoginPageState extends State<LoginPage>
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: FadeTransition(
           opacity: _fadeIn,
@@ -105,181 +109,215 @@ class _LoginPageState extends State<LoginPage>
             child: ListView(
               physics: const ClampingScrollPhysics(),
               children: [
-                SizedBox(
-                  height: 240,
-                  child: Stack(
+                // ── Header area ──
+                Container(
+                  padding: const EdgeInsets.fromLTRB(24, 48, 24, 32),
+                  child: Column(
                     children: [
-                      ClipPath(
-                        clipper: _WaveClipper(),
-                        child: Container(
-                          height: 240,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF0077B6), Color(0xFF0099DD), Color(0xFF40C4FF)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                            ),
+                      // Logo
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: AppTheme.cardShadow,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: Image.asset(
+                            'assets/logo.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                      Positioned.fill(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(20),
-                              child: Image.asset('assets/logo.png',
-                                  width: 80, height: 80, fit: BoxFit.contain),
-                            ),
-                            const SizedBox(height: 12),
-                            const Text('Aqua Japan',
-                                style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: 1.2)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Sistem Manajemen',
-                              style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white.withValues(alpha: 0.82)),
-                            ),
-                          ],
+                      const SizedBox(height: 20),
+                      Text(
+                        'Aqua Japan',
+                        style: GoogleFonts.poppins(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                          letterSpacing: 0.5,
                         ),
                       ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: IconButton(
-                          onPressed: () async {
-                            await showChangeServerDialog(context);
-                          },
-                          icon: const Icon(Icons.settings_outlined,
-                              color: Colors.white),
-                          tooltip: 'Pengaturan Server',
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sistem Manajemen',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                // ── Login card ──
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Transform.translate(
-                    offset: const Offset(0, -32),
-                    child: Card(
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20)),
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            const Text('Selamat Datang',
-                                style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Masuk untuk melanjutkan',
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  color: cs.onSurface.withValues(alpha: 0.55)),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: cs.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                      boxShadow: AppTheme.cardShadow,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Selamat Datang 👋',
+                            style: GoogleFonts.poppins(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurface,
                             ),
-                            const SizedBox(height: 24),
-                            TextField(
-                              controller: _u,
-                              textInputAction: TextInputAction.next,
-                              decoration: InputDecoration(
-                                labelText: 'Username',
-                                prefixIcon: const Icon(Icons.person_outline),
-                                filled: true,
-                                fillColor: cs.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Masuk untuk melanjutkan',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              color: cs.onSurfaceVariant,
                             ),
-                            const SizedBox(height: 14),
-                            TextField(
-                              controller: _p,
-                              obscureText: _obscure,
-                              onSubmitted: (_) =>
-                                  _loading ? null : _doLogin(),
-                              decoration: InputDecoration(
-                                labelText: 'Password',
-                                prefixIcon: const Icon(Icons.lock_outline),
-                                filled: true,
-                                fillColor: cs.surfaceContainerHighest
-                                    .withValues(alpha: 0.4),
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  borderSide: BorderSide.none,
-                                ),
-                                suffixIcon: IconButton(
-                                  onPressed: () =>
-                                      setState(() => _obscure = !_obscure),
-                                  icon: Icon(_obscure
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Username field
+                          Text(
+                            'Username',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _u,
+                            textInputAction: TextInputAction.next,
+                            decoration: InputDecoration(
+                              hintText: 'Masukkan username',
+                              prefixIcon: const Icon(Icons.person_outline, size: 20),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+
+                          // Password field
+                          Text(
+                            'Password',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: cs.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: _p,
+                            obscureText: _obscure,
+                            onSubmitted: (_) => _loading ? null : _doLogin(),
+                            decoration: InputDecoration(
+                              hintText: 'Masukkan password',
+                              prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                              suffixIcon: IconButton(
+                                onPressed: () =>
+                                    setState(() => _obscure = !_obscure),
+                                icon: Icon(
+                                  _obscure
                                       ? Icons.visibility_outlined
-                                      : Icons.visibility_off_outlined),
+                                      : Icons.visibility_off_outlined,
+                                  size: 20,
+                                  color: cs.onSurfaceVariant,
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              height: 52,
-                              child: FilledButton(
-                                onPressed: _loading ? null : _doLogin,
-                                style: FilledButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(14)),
-                                  backgroundColor: cs.primary,
-                                  foregroundColor: cs.onPrimary,
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Login button
+                          SizedBox(
+                            height: 52,
+                            child: FilledButton(
+                              onPressed: _loading ? null : _doLogin,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: cs.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(AppTheme.radiusButton),
                                 ),
-                                child: _loading
-                                    ? SizedBox(
-                                        width: 22,
-                                        height: 22,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            color: cs.onPrimary))
-                                    : const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Text('Masuk',
-                                              style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600)),
-                                          SizedBox(width: 8),
-                                          Icon(Icons.arrow_forward_rounded),
-                                        ],
+                                elevation: 0,
+                              ),
+                              child: _loading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
                                       ),
-                              ),
+                                    )
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          'Masuk',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        const Icon(Icons.arrow_forward_rounded, size: 18),
+                                      ],
+                                    ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+
+                const SizedBox(height: 32),
+
+                // ── Footer ──
                 Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.local_shipping_outlined,
-                          size: 14,
-                          color: cs.onSurface.withValues(alpha: 0.3)),
+                      Icon(
+                        Icons.local_shipping_outlined,
+                        size: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 6),
-                      Text('Aqua Japan v1.0',
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurface.withValues(alpha: 0.3))),
+                      Text(
+                        'Aqua Japan v1.0',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
                     ],
+                  ),
+                ),
+
+                // Server settings button
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton.icon(
+                    onPressed: () => showChangeServerDialog(context),
+                    icon: Icon(Icons.settings_outlined,
+                        size: 16, color: cs.onSurfaceVariant),
+                    label: Text(
+                      'Pengaturan Server',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -290,26 +328,4 @@ class _LoginPageState extends State<LoginPage>
       ),
     );
   }
-}
-
-class _WaveClipper extends CustomClipper<Path> {
-  @override
-  Path getClip(Size size) {
-    final path = Path();
-    path.lineTo(0, size.height - 50);
-    final firstControlPoint = Offset(size.width * 0.25, size.height);
-    final firstEndPoint = Offset(size.width * 0.5, size.height - 30);
-    path.quadraticBezierTo(
-        firstControlPoint.dx, firstControlPoint.dy, firstEndPoint.dx, firstEndPoint.dy);
-    final secondControlPoint = Offset(size.width * 0.75, size.height - 60);
-    final secondEndPoint = Offset(size.width, size.height - 40);
-    path.quadraticBezierTo(
-        secondControlPoint.dx, secondControlPoint.dy, secondEndPoint.dx, secondEndPoint.dy);
-    path.lineTo(size.width, 0);
-    path.close();
-    return path;
-  }
-
-  @override
-  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

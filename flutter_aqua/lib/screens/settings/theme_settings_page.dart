@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../config/theme.dart';
 import '../../config/theme_provider.dart';
 
 class ThemeSettingsPage extends StatefulWidget {
@@ -24,9 +26,14 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Pengaturan Tema')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         children: [
-          Card(
+          Container(
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+              boxShadow: AppTheme.cardShadow,
+            ),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -35,12 +42,12 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: cs.primaryContainer,
-                      borderRadius: BorderRadius.circular(14),
+                      color: OctaviaColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
                       _provider.isDark ? Icons.dark_mode : Icons.light_mode,
-                      color: cs.onPrimaryContainer,
+                      color: OctaviaColors.primary,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -50,19 +57,19 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
                       children: [
                         Text(
                           'Mode Gelap',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                          style: GoogleFonts.poppins(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                             color: cs.onSurface,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           _provider.isDark
                               ? 'Tema gelap sedang aktif'
                               : 'Tema terang sedang aktif',
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
                             color: cs.onSurfaceVariant,
                           ),
                         ),
@@ -79,10 +86,13 @@ class _ThemeSettingsPageState extends State<ThemeSettingsPage> {
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             'Pilih tema yang nyaman untuk pengalaman menggunakan aplikasi. Perubahan akan diterapkan secara otomatis.',
-            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: cs.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -100,7 +110,8 @@ class ThemeProviderScope extends InheritedWidget {
   });
 
   static ThemeProvider of(BuildContext context) {
-    final scope = context.dependOnInheritedWidgetOfExactType<ThemeProviderScope>();
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<ThemeProviderScope>();
     assert(scope != null, 'ThemeProviderScope tidak ditemukan di widget tree');
     return scope!.provider;
   }
