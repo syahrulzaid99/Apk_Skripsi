@@ -34,122 +34,301 @@
     .tab-content.active { display: block; }
 
     .oct-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    .oct-stat-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; padding: 1.25rem; box-shadow: var(--oct-shadow-sm); }
-    .oct-stat-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-text-muted); margin-bottom: 0.375rem; }
-    .oct-stat-value { font-family: 'Poppins', sans-serif; font-size: 1.375rem; font-weight: 700; color: var(--oct-text); line-height: 1; }
-    .oct-chart-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.5rem; }
-    .oct-chart-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.9375rem; color: var(--oct-text); }
+    .oct-stat-card {
+        background: var(--oct-card);
+        border: 1px solid var(--oct-border-light);
+        border-radius: 16px;
+        padding: 1.25rem;
+        box-shadow: var(--oct-shadow-sm);
+        position: relative;
+        overflow: hidden;
+    }
+    .oct-stat-card::after {
+        content: '';
+        position: absolute;
+        top: 0; right: 0;
+        width: 80px; height: 80px;
+        border-radius: 0 0 0 80px;
+        opacity: 0.06;
+        pointer-events: none;
+    }
+    .oct-stat-card.card-revenue::after  { background: #10B981; }
+    .oct-stat-card.card-branch::after  { background: #3B82F6; }
+    .oct-stat-card.card-trx::after     { background: #8B5CF6; }
+    .oct-stat-card.card-items::after   { background: #F59E0B; }
+    .oct-stat-label {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--oct-text-muted);
+        margin-bottom: 0.375rem;
+        position: relative;
+        z-index: 1;
+    }
+    .oct-stat-value {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.375rem;
+        font-weight: 700;
+        color: var(--oct-text);
+        line-height: 1;
+        position: relative;
+        z-index: 1;
+    }
+    .oct-stat-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.75rem;
+        opacity: 0.12;
+        z-index: 0;
+    }
+    .oct-chart-card {
+        background: var(--oct-card);
+        border: 1px solid var(--oct-border-light);
+        border-radius: 16px;
+        box-shadow: var(--oct-shadow-sm);
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    .oct-chart-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid var(--oct-border-light);
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 0.9375rem;
+        color: var(--oct-text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
     .oct-chart-body { padding: 1.25rem; }
-    .oct-rank { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.8125rem; color: #fff; flex-shrink: 0; }
-    @media (max-width: 767px) { .oct-stat-row { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 575px) { .oct-stat-row { grid-template-columns: 1fr; } }
+    .oct-rank {
+        width: 32px; height: 32px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Poppins', sans-serif;
+        font-weight: 700;
+        font-size: 0.8125rem;
+        color: #fff;
+        flex-shrink: 0;
+    }
+    .oct-branch-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+        gap: 1.25rem;
+    }
+    @media (max-width: 960px) {
+        .oct-branch-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 767px) {
+        .oct-stat-row { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 575px) {
+        .oct-stat-row { grid-template-columns: 1fr; }
+    }
+
+    /* Filter pill buttons */
+    .filter-pill {
+        padding: 0.35rem 0.85rem;
+        font-family: 'Poppins', sans-serif;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border-radius: 50rem;
+        border: 1.5px solid var(--oct-border-light);
+        background: transparent;
+        color: var(--oct-text-muted);
+        cursor: pointer;
+        transition: all 0.18s ease;
+    }
+    .filter-pill:hover { border-color: var(--oct-primary); color: var(--oct-primary); }
+    .filter-pill.active {
+        background: var(--oct-primary);
+        color: #fff;
+        border-color: var(--oct-primary);
+    }
+
+    /* Chart container */
+    .chart-canvas-wrap {
+        position: relative;
+        width: 100%;
+    }
+    .chart-canvas-wrap canvas { width: 100% !important; }
 </style>
 
 <!-- ═══════════ TAB: PENJUALAN ═══════════ -->
 <div id="tab-penjualan" class="tab-content active">
     <!-- Filter Cabang -->
-    <div class="card" style="margin-bottom:1rem; border-radius:16px;">
+    <div class="card" style="margin-bottom:1.25rem; border-radius:16px;">
         <div class="card-body" style="padding:0.75rem 1.25rem;">
             <div class="d-flex flex-wrap align-items-center" style="gap:0.5rem;">
-                <span style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted);"><i class="fas fa-store" style="margin-right:0.25rem;"></i> Cabang</span>
-                <button type="button" class="btn btn-sm btn-primary filter-cabang active" data-cabang="all">Semua</button>
+                <span style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted);">
+                    <i class="fas fa-store" style="margin-right:0.25rem;"></i> Cabang
+                </span>
+                <button type="button" class="filter-pill active filter-cabang" data-cabang="all">Semua</button>
                 <% branches.forEach(function(b) { %>
-                    <button type="button" class="btn btn-sm btn-outline-secondary filter-cabang" data-cabang="<%= b.cabang_id %>"><%= b.nama_cabang || b.username %></button>
+                    <button type="button" class="filter-pill filter-cabang" data-cabang="<%= b.cabang_id %>"><%= b.nama_cabang || b.username %></button>
                 <% }); %>
             </div>
         </div>
     </div>
 
-    <!-- Summary (dynamic) -->
+    <!-- Summary Cards -->
     <div class="oct-stat-row" id="salesSummary">
-        <div class="oct-stat-card">
+        <div class="oct-stat-card card-branch">
+            <span class="oct-stat-icon"><i class="fas fa-store-alt"></i></span>
             <div class="oct-stat-label">Total Cabang</div>
             <div class="oct-stat-value" id="sumCabang"><%= salesSummary.totalCabang %></div>
         </div>
-        <div class="oct-stat-card">
+        <div class="oct-stat-card card-revenue">
+            <span class="oct-stat-icon"><i class="fas fa-coins"></i></span>
             <div class="oct-stat-label">Total Pendapatan</div>
-            <div class="oct-stat-value" id="sumPendapatan" style="color:var(--oct-green-dark); font-size:1.125rem;">Rp <%= salesSummary.totalPendapatan.toLocaleString('id-ID') %></div>
+            <div class="oct-stat-value" id="sumPendapatan" style="color:#059669; font-size:1.125rem;">Rp <%= salesSummary.totalPendapatan.toLocaleString('id-ID') %></div>
         </div>
-        <div class="oct-stat-card">
+        <div class="oct-stat-card card-trx">
+            <span class="oct-stat-icon"><i class="fas fa-receipt"></i></span>
             <div class="oct-stat-label">Total Transaksi</div>
             <div class="oct-stat-value" id="sumTransaksi"><%= salesSummary.totalTransaksi %></div>
         </div>
-        <div class="oct-stat-card">
+        <div class="oct-stat-card card-items">
+            <span class="oct-stat-icon"><i class="fas fa-boxes"></i></span>
             <div class="oct-stat-label">Item Terjual</div>
             <div class="oct-stat-value" id="sumItem"><%= salesSummary.totalItemTerjual %></div>
         </div>
     </div>
 
     <% if (branches.length === 0) { %>
-        <div class="oct-chart-card"><div class="oct-chart-body text-center" style="padding:3rem; color:var(--oct-text-muted);">
-            <i class="fas fa-chart-bar" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
-            Belum ada data penjualan.
-        </div></div>
-    <% } %>
+        <div class="oct-chart-card">
+            <div class="oct-chart-body text-center" style="padding:4rem 2rem; color:var(--oct-text-muted);">
+                <i class="fas fa-chart-bar" style="font-size:3rem; opacity:0.2; display:block; margin-bottom:1rem;"></i>
+                Belum ada data penjualan.
+            </div>
+        </div>
+    <% } else { %>
 
-    <% var rankColors = ['#3B82F6','#6366F1','#06B6D4','#4ADE80','#FBBF24','#F472B6']; %>
-    <% branches.forEach(function(b, idx) { var color = rankColors[idx % rankColors.length]; var maxMonthly = Math.max.apply(null, b.monthly.map(function(m){return m.total;}).concat([1])); %>
+    <!-- ── Overview Chart: Perbandingan Pendapatan per Cabang ── -->
+    <div class="oct-chart-card">
+        <div class="oct-chart-header">
+            <i class="fas fa-chart-line" style="color:#3B82F6;"></i>
+            Tren Pendapatan per Cabang
+            <span style="margin-left:auto; font-size:0.6875rem; font-weight:500; color:var(--oct-text-muted); text-transform:uppercase; letter-spacing:0.05em;">
+                <i class="fas fa-info-circle" style="margin-right:0.25rem;"></i>Total Revenue (Rp)
+            </span>
+        </div>
+        <div class="oct-chart-body">
+            <div class="chart-canvas-wrap" style="height:320px;">
+                <canvas id="overviewChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Branch Detail Cards ── -->
+    <div class="oct-branch-grid">
+    <% var rankColors = ['#3B82F6','#6366F1','#06B6D4','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316']; %>
+    <% branches.forEach(function(b, idx) { var color = rankColors[idx % rankColors.length]; var branchIdx = idx; %>
     <div class="oct-chart-card branch-card" data-cabang-id="<%= b.cabang_id %>"
          data-pendapatan="<%= b.totalPendapatan %>" data-transaksi="<%= b.totalTransaksi %>" data-item="<%= b.totalItemTerjual %>">
-        <div style="padding:1.25rem 1.5rem; border-bottom:1px solid var(--oct-border-light); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <!-- Header -->
+        <div style="padding:1rem 1.25rem; border-bottom:1px solid var(--oct-border-light); display:flex; justify-content:space-between; align-items:center; gap:12px;">
             <div style="display:flex; align-items:center; gap:0.75rem;">
                 <div class="oct-rank" style="background:<%= color %>;"><%= idx + 1 %></div>
                 <div>
                     <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1rem; color:var(--oct-text);"><%= b.nama_cabang || b.username %></div>
-                    <div style="font-size:0.8125rem; color:var(--oct-text-muted);"><% if (b.kota) { %><%= b.kota %><% if (b.provinsi) { %>, <%= b.provinsi %><% } %><% } else { %><%= b.username %><% } %></div>
+                    <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
+                        <% if (b.kota) { %><i class="fas fa-map-marker-alt" style="margin-right:0.25rem; font-size:0.6875rem;"></i><%= b.kota %><% if (b.provinsi) { %>, <%= b.provinsi %><% } %><% } else { %><%= b.username %><% } %>
+                    </div>
                 </div>
             </div>
             <div style="text-align:right;">
-                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.25rem; color:var(--oct-green-dark);">Rp <%= b.totalPendapatan.toLocaleString('id-ID') %></div>
-                <div style="font-size:0.8125rem; color:var(--oct-text-muted);"><%= b.totalTransaksi %> transaksi &bull; <%= b.totalItemTerjual %> item</div>
+                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.125rem; color:#059669;">Rp <%= b.totalPendapatan.toLocaleString('id-ID') %></div>
+                <div style="font-size:0.75rem; color:var(--oct-text-muted);"><%= b.totalTransaksi %> transaksi &bull; <%= b.totalItemTerjual %> item</div>
             </div>
         </div>
+        <!-- Monthly Chart -->
         <div class="oct-chart-body">
             <% if (b.monthly.length > 0) { %>
-            <div style="font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.5rem;">
-                <i class="fas fa-chart-line" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Pendapatan per Bulan
+            <div style="font-size:0.75rem; font-weight:600; color:var(--oct-text-muted); margin-bottom:0.625rem; display:flex; align-items:center; gap:0.375rem;">
+                <i class="fas fa-chart-line" style="color:<%= color %>;"></i> Pendapatan per Hari
             </div>
-            <div style="display:flex; gap:0.375rem; align-items:flex-end; height:60px;">
-                <% b.monthly.forEach(function(m) { var h = maxMonthly > 0 ? Math.max(4, Math.round((m.total / maxMonthly) * 52)) : 4; %>
-                <div style="flex:1; min-width:28px; display:flex; flex-direction:column; align-items:center; gap:3px;">
-                    <div style="font-size:0.5625rem; font-weight:600; color:var(--oct-text-muted);"><%= m.count %></div>
-                    <div style="width:100%; height:<%= h %>px; background:<%= color %>; border-radius:4px 4px 0 0; opacity:0.8;"></div>
-                    <div style="font-size:0.5625rem; color:var(--oct-text-muted); text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:36px;"><%= m.label %></div>
-                </div>
-                <% }); %>
+            <div class="chart-canvas-wrap" style="height:160px;">
+                <canvas id="branchChart<%= branchIdx %>"></canvas>
+            </div>
+            <% } else { %>
+            <div style="text-align:center; padding:1.5rem; color:var(--oct-text-muted); font-size:0.8125rem;">
+                <i class="fas fa-chart-line" style="font-size:1.5rem; opacity:0.3; display:block; margin-bottom:0.5rem;"></i>
+                Belum ada data bulanan
             </div>
             <% } %>
 
+            <!-- Recent Transactions -->
             <% if (b.recentSales.length > 0) { %>
-            <div style="margin-top:1rem; font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.5rem;">
-                <i class="fas fa-receipt" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Transaksi Terakhir
+            <div style="margin-top:1rem; font-size:0.75rem; font-weight:600; color:var(--oct-text-muted); margin-bottom:0.5rem; display:flex; align-items:center; gap:0.375rem;">
+                <i class="fas fa-receipt" style="color:<%= color %>;"></i> Transaksi Terakhir
             </div>
             <% b.recentSales.forEach(function(s) { %>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--oct-border-light);">
-                <div>
-                    <div style="font-weight:600; font-size:0.875rem; color:var(--oct-text);">
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--oct-border-light); gap:0.5rem;">
+                <div style="min-width:0; flex:1;">
+                    <div style="font-weight:600; font-size:0.8125rem; color:var(--oct-text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                         <%= s.kode_penjualan %>
-                        <% if (s.source === 'order') { %><span style="font-size:0.625rem; background:var(--oct-primary-bg); color:var(--oct-primary); padding:0.125em 0.5em; border-radius:50rem; font-weight:700; margin-left:0.375rem;">ORDER</span><% } else if (s.source === 'pos') { %><span style="font-size:0.625rem; background:rgba(74,222,128,0.12); color:var(--oct-green-dark); padding:0.125em 0.5em; border-radius:50rem; font-weight:700; margin-left:0.375rem;">POS</span><% } %>
+                        <% if (s.source === 'order') { %><span style="font-size:0.625rem; background:rgba(99,102,241,0.12); color:#6366F1; padding:0.125em 0.5em; border-radius:50rem; font-weight:700; margin-left:0.375rem;">ORDER</span><% } else if (s.source === 'pos') { %><span style="font-size:0.625rem; background:rgba(16,185,129,0.12); color:#059669; padding:0.125em 0.5em; border-radius:50rem; font-weight:700; margin-left:0.375rem;">POS</span><% } %>
                     </div>
-                    <div style="font-size:0.75rem; color:var(--oct-text-muted);"><%= s.jumlah_item %> item<% if (s.createdAt) { %> &bull; <% var d = s.createdAt.toDate ? s.createdAt.toDate() : (s.createdAt._seconds ? new Date(s.createdAt._seconds * 1000) : new Date(s.createdAt)); %><%= d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) %><% } %></div>
+                    <div style="font-size:0.6875rem; color:var(--oct-text-muted);"><%= s.jumlah_item %> item<% if (s.createdAt) { %> &bull; <% var d = s.createdAt.toDate ? s.createdAt.toDate() : (s.createdAt._seconds ? new Date(s.createdAt._seconds * 1000) : new Date(s.createdAt)); %><%= d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) %><% } %></div>
                 </div>
-                <div style="font-weight:700; color:var(--oct-primary); font-size:0.9375rem;">Rp <%= s.total_harga.toLocaleString('id-ID') %></div>
+                <div style="font-weight:700; color:var(--oct-primary); font-size:0.875rem; white-space:nowrap;">Rp <%= s.total_harga.toLocaleString('id-ID') %></div>
             </div>
             <% }); %>
             <% } %>
         </div>
     </div>
     <% }); %>
+    </div>
+    <% } %>
 </div>
 
 <!-- ═══════════ TAB: PENGIRIMAN ═══════════ -->
 <div id="tab-pengiriman" class="tab-content">
+    <!-- Shipment Summary Cards -->
+    <% var totalShipmentValue = 0; reportRows.forEach(function(r) { totalShipmentValue += Number(r.item_net_value || 0); }); %>
+    <div class="oct-stat-row">
+        <div class="oct-stat-card card-revenue">
+            <span class="oct-stat-icon"><i class="fas fa-truck-loading"></i></span>
+            <div class="oct-stat-label">Total Pendapatan Kirim</div>
+            <div class="oct-stat-value" style="color:#059669; font-size:1.125rem;">Rp <%= totalShipmentValue.toLocaleString('id-ID') %></div>
+        </div>
+        <div class="oct-stat-card card-trx">
+            <span class="oct-stat-icon"><i class="fas fa-file-invoice"></i></span>
+            <div class="oct-stat-label">Total Invoice</div>
+            <div class="oct-stat-value"><%= reportRows.length %></div>
+        </div>
+        <div class="oct-stat-card card-items">
+            <span class="oct-stat-icon"><i class="fas fa-box"></i></span>
+            <div class="oct-stat-label">Total Item Dikirim</div>
+            <% var totalQty = 0; reportRows.forEach(function(r) { totalQty += Number(r.billed_qty || 0); }); %>
+            <div class="oct-stat-value"><%= totalQty %></div>
+        </div>
+        <div class="oct-stat-card card-branch">
+            <span class="oct-stat-icon"><i class="fas fa-users"></i></span>
+            <div class="oct-stat-label">Customer Unik</div>
+            <% var uniqCustomers = new Set(); reportRows.forEach(function(r) { uniqCustomers.add(r.customer_code); }); %>
+            <div class="oct-stat-value"><%= uniqCustomers.size %></div>
+        </div>
+    </div>
+
     <div class="oct-chart-card">
         <div class="oct-chart-header">
-            <i class="fas fa-chart-line" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Grafik Pendapatan Pengiriman
+            <i class="fas fa-chart-line" style="color:#06B6D4;"></i>
+            Grafik Pendapatan Pengiriman
+            <span style="margin-left:auto; font-size:0.6875rem; font-weight:500; color:var(--oct-text-muted); text-transform:uppercase; letter-spacing:0.05em;">
+                <i class="fas fa-calendar-alt" style="margin-right:0.25rem;"></i>Per Hari
+            </span>
         </div>
         <div class="oct-chart-body">
-            <div style="height:300px;"><canvas id="shipmentChart"></canvas></div>
+            <div class="chart-canvas-wrap" style="height:320px;">
+                <canvas id="shipmentChart"></canvas>
+            </div>
         </div>
     </div>
 
@@ -226,26 +405,218 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script>
-    // Tab switching
+    // ── Color palette ──
+    var PALETTE = ['#3B82F6','#6366F1','#06B6D4','#10B981','#F59E0B','#EF4444','#8B5CF6','#EC4899','#14B8A6','#F97316'];
+
+    // ── Utility: format Rupiah ──
+    function fmtRp(v) {
+        if (v >= 1000000) return 'Rp ' + (v/1000000).toLocaleString('id-ID') + 'M';
+        if (v >= 1000) return 'Rp ' + (v/1000).toLocaleString('id-ID') + 'K';
+        return 'Rp ' + v.toLocaleString('id-ID');
+    }
+
+    // ── Utility: create gradient ──
+    function createGradient(ctx, color, alphaTop, alphaBot) {
+        var grad = ctx.createLinearGradient(0, 0, 0, 300);
+        grad.addColorStop(0, color + hexAlpha(alphaTop || 0.85));
+        grad.addColorStop(1, color + hexAlpha(alphaBot || 0.15));
+        return grad;
+    }
+
+    function hexAlpha(a) {
+        return Math.round(a * 255).toString(16).padStart(2, '0');
+    }
+
+    // ── Tooltip styling ──
+    var tooltipStyle = {
+        backgroundColor: '#fff',
+        titleColor: '#1E293B',
+        bodyColor: '#64748B',
+        borderColor: '#E2E8F0',
+        borderWidth: 1,
+        cornerRadius: 10,
+        padding: 12,
+        titleFont: { family: 'Poppins', weight: '600', size: 13 },
+        bodyFont: { family: 'Poppins', weight: '500', size: 12 },
+        displayColors: false,
+    };
+
+    // ═══════════ Tab switching ═══════════
     function switchTab(name) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.oct-tab').forEach(el => el.classList.remove('active'));
-        document.getElementById('tab-' + name).classList.add('active');
-        document.querySelector('.oct-tab[data-tab="' + name + '"]').classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+        document.querySelectorAll('.oct-tab').forEach(function(el) { el.classList.remove('active'); });
+        var tabContent = document.getElementById('tab-' + name);
+        var tabBtn = document.querySelector('.oct-tab[data-tab="' + name + '"]');
+        if (tabContent) tabContent.classList.add('active');
+        if (tabBtn) tabBtn.classList.add('active');
+
+        // Trigger resize on charts when switching to pengiriman
+        if (name === 'pengiriman') {
+            setTimeout(function() {
+                if (window.shipmentChartInstance) window.shipmentChartInstance.resize();
+            }, 50);
+        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        // ── Penjualan: Filter per cabang ──
+        // ═══════════════════════════════════════════
+        //  PENJUALAN: Overview Chart (Line — Multi-cabang)
+        // ═══════════════════════════════════════════
+        var branchesData = <%- JSON.stringify(branches.map(function(b) { return {
+            nama: b.nama_cabang || b.username,
+            pendapatan: b.totalPendapatan,
+            transaksi: b.totalTransaksi,
+            item: b.totalItemTerjual,
+        }; })) %>;
+
+        var overviewCtx = document.getElementById('overviewChart');
+        if (overviewCtx && branchesData.length > 0) {
+            var overviewColors = branchesData.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+
+            window.overviewChartInstance = new Chart(overviewCtx, {
+                type: 'line',
+                data: {
+                    labels: branchesData.map(function(d) { return d.nama; }),
+                    datasets: [{
+                        label: 'Total Pendapatan',
+                        data: branchesData.map(function(d) { return d.pendapatan; }),
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        borderColor: '#3B82F6',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#3B82F6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        tension: 0.4,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 800, easing: 'easeOutQuart' },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: 'Poppins', size: 11, weight: '500' },
+                                color: '#94A3B8',
+                                maxRotation: 30,
+                            },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226,232,240,0.6)', drawBorder: false },
+                            ticks: {
+                                font: { family: 'Poppins', size: 10 },
+                                color: '#94A3B8',
+                                callback: function(v) { return fmtRp(v); },
+                            },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: Object.assign({}, tooltipStyle, {
+                            callbacks: {
+                                title: function(ctx) { return ctx[0].label; },
+                                label: function(ctx) {
+                                    return ['Pendapatan: ' + fmtRp(ctx.parsed.y), 'Transaksi: ' + branchesData[ctx.dataIndex].transaksi, 'Item: ' + branchesData[ctx.dataIndex].item];
+                                },
+                            },
+                        }),
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                },
+            });
+        }
+
+        // ═══════════════════════════════════════════
+        //  PENJUALAN: Branch mini line charts
+        // ═══════════════════════════════════════════
+        <% var branchColorsJson = []; branches.forEach(function(b, idx) { branchColorsJson.push(rankColors[idx % rankColors.length]); }); %>
+        var branchPalette = <%- JSON.stringify(branchColorsJson) %>;
+        var branchMonthData = <%- JSON.stringify(branches.map(function(b) { return b.monthly; })) %>;
+
+        branchMonthData.forEach(function(monthly, i) {
+            var canvas = document.getElementById('branchChart' + i);
+            if (!canvas || monthly.length === 0) return;
+            var color = branchPalette[i] || PALETTE[i % PALETTE.length];
+            var ctx2d = canvas.getContext('2d');
+            var grad = ctx2d.createLinearGradient(0, 0, 0, 160);
+            grad.addColorStop(0, color + '33');
+            grad.addColorStop(1, color + '05');
+
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: monthly.map(function(m) { return m.label; }),
+                    datasets: [{
+                        data: monthly.map(function(m) { return m.total; }),
+                        backgroundColor: grad,
+                        borderColor: color,
+                        borderWidth: 2,
+                        pointBackgroundColor: color,
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1.5,
+                        pointRadius: monthly.length > 30 ? 2 : 3.5,
+                        pointHoverRadius: monthly.length > 30 ? 5 : 6,
+                        tension: 0.35,
+                        fill: true,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 500, easing: 'easeOutQuart' },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: 'Poppins', size: 8, weight: '500' },
+                                color: '#94A3B8',
+                                maxRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 12,
+                            },
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226,232,240,0.4)', drawBorder: false },
+                            ticks: {
+                                font: { family: 'Poppins', size: 8 },
+                                color: '#94A3B8',
+                                callback: function(v) { return fmtRp(v); },
+                                maxTicksLimit: 4,
+                            },
+                        },
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: Object.assign({}, tooltipStyle, {
+                            callbacks: {
+                                title: function(ctx) { return ctx[0].label; },
+                                label: function(ctx) { return ['Pendapatan: ' + fmtRp(ctx.parsed.y), ctx.raw > 0 ? monthly[ctx.dataIndex].count + ' transaksi' : '']; },
+                            },
+                        }),
+                    },
+                },
+            });
+        });
+
+        // ═══════════════════════════════════════════
+        //  PENJUALAN: Branch filter
+        // ═══════════════════════════════════════════
         var filterBtns = document.querySelectorAll('.filter-cabang');
         var branchCards = document.querySelectorAll('.branch-card');
 
         function applyBranchFilter() {
             var activeBtn = document.querySelector('.filter-cabang.active');
             var cabangId = activeBtn ? activeBtn.getAttribute('data-cabang') : 'all';
-
             var totalPendapatan = 0, totalTransaksi = 0, totalItem = 0, visibleCabang = 0;
+            var matchedIndex = -1; // index in branchesData that matches cabangId
 
             branchCards.forEach(function(card) {
                 var match = (cabangId === 'all' || card.getAttribute('data-cabang-id') === cabangId);
@@ -262,16 +633,55 @@
             document.getElementById('sumPendapatan').textContent = 'Rp ' + totalPendapatan.toLocaleString('id-ID');
             document.getElementById('sumTransaksi').textContent = totalTransaksi;
             document.getElementById('sumItem').textContent = totalItem;
+
+            // Update overview line chart: highlight matched point
+            if (window.overviewChartInstance && branchesData.length > 0) {
+                var ds = window.overviewChartInstance.data.datasets[0];
+                var pointCount = ds.data.length;
+                var matchIdx = -1;
+
+                if (cabangId !== 'all') {
+                    for (var j = 0; j < branchCards.length; j++) {
+                        if (branchCards[j].getAttribute('data-cabang-id') === cabangId) {
+                            matchIdx = j;
+                            break;
+                        }
+                    }
+                }
+
+                // Build per-point styles
+                var pointColors = [], pointSizes = [], pointBorderColors = [];
+                for (var k = 0; k < pointCount; k++) {
+                    if (cabangId === 'all' || k === matchIdx) {
+                        pointColors.push('#3B82F6');
+                        pointBorderColors.push('#fff');
+                        pointSizes.push(k === matchIdx ? 8 : 5);
+                    } else {
+                        pointColors.push('rgba(148,163,184,0.25)');
+                        pointBorderColors.push('rgba(148,163,184,0.1)');
+                        pointSizes.push(3);
+                    }
+                }
+
+                ds.pointBackgroundColor = pointColors;
+                ds.pointBorderColor = pointBorderColors;
+                ds.pointRadius = pointSizes;
+                ds.pointHoverRadius = pointSizes.map(function(s) { return s + 3; });
+                window.overviewChartInstance.update();
+            }
         }
 
         filterBtns.forEach(function(btn) {
             btn.addEventListener('click', function() {
-                filterBtns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline-secondary'); });
-                this.classList.remove('btn-outline-secondary'); this.classList.add('btn-primary');
+                filterBtns.forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
                 applyBranchFilter();
             });
         });
-        // DataTable with Excel export for shipments
+
+        // ═══════════════════════════════════════════
+        //  PENGIRIMAN: DataTable
+        // ═══════════════════════════════════════════
         var dt = $('#shipmentTable').DataTable({
             pageLength: 50,
             lengthMenu: [10, 25, 50, 100, 500],
@@ -297,63 +707,97 @@
         $('#shipmentSearch').on('keyup', function() { dt.search(this.value).draw(); });
         $('#btnDownloadExcel').on('click', function() { dt.button('.buttons-excel').trigger(); });
 
-        // Shipment chart
+        // ═══════════════════════════════════════════
+        //  PENGIRIMAN: Shipment Chart
+        // ═══════════════════════════════════════════
         var reportData = <%- JSON.stringify(reportRows) %>;
         var groupedData = {};
         reportData.forEach(function(row) {
             if (!row.invoice_date) return;
             var dateObj = new Date(row.invoice_date);
-            var key = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0');
+            var key = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
             if (!groupedData[key]) groupedData[key] = 0;
             groupedData[key] += Number(row.item_net_value || 0);
         });
         var sortedKeys = Object.keys(groupedData).sort();
+        var monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         var labels = sortedKeys.map(function(key) {
             var parts = key.split('-');
-            return new Date(parts[0], parts[1] - 1).toLocaleDateString('id-ID', { month: 'short', year: 'numeric' });
+            return parseInt(parts[2]) + ' ' + monthNames[parseInt(parts[1]) - 1] + ' ' + parts[0];
         });
         var dataValues = sortedKeys.map(function(key) { return groupedData[key]; });
 
-        var ctx = document.getElementById('shipmentChart');
-        if (ctx && sortedKeys.length > 0) {
-            new Chart(ctx, {
-                type: 'bar',
+        var shipCtx = document.getElementById('shipmentChart');
+        if (shipCtx && sortedKeys.length > 0) {
+            var shipGrad = shipCtx.getContext('2d').createLinearGradient(0, 0, 0, 320);
+            shipGrad.addColorStop(0, 'rgba(6, 182, 212, 0.25)');
+            shipGrad.addColorStop(1, 'rgba(6, 182, 212, 0.02)');
+
+            var isDense = sortedKeys.length > 30;
+
+            window.shipmentChartInstance = new Chart(shipCtx, {
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
                         label: 'Pendapatan (Rp)',
                         data: dataValues,
-                        backgroundColor: 'rgba(6, 182, 212, 0.7)',
-                        borderColor: 'rgba(6, 182, 212, 1)',
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        barPercentage: 0.6,
+                        backgroundColor: shipGrad,
+                        borderColor: '#06B6D4',
+                        borderWidth: 2.5,
+                        pointBackgroundColor: '#06B6D4',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: isDense ? 2 : 5,
+                        pointHoverRadius: isDense ? 5 : 8,
+                        tension: isDense ? 0.3 : 0.4,
+                        fill: true,
                     }]
                 },
                 options: {
+                    responsive: true,
                     maintainAspectRatio: false,
+                    animation: { duration: 800, easing: 'easeOutQuart' },
                     scales: {
-                        x: { grid: { display: false } },
-                        y: {
+                        x: {
+                            grid: { display: false },
                             ticks: {
-                                callback: function(v) {
-                                    return v >= 1000000 ? 'Rp ' + (v/1000000).toLocaleString('id-ID') + 'M' :
-                                           v >= 1000 ? 'Rp ' + (v/1000).toLocaleString('id-ID') + 'K' : 'Rp ' + v.toLocaleString('id-ID');
-                                }
+                                font: { family: 'Poppins', size: 10, weight: '500' },
+                                color: '#94A3B8',
+                                maxRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 14,
                             },
-                            grid: { color: 'rgba(226,232,240,0.5)', drawBorder: false }
-                        }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(226,232,240,0.6)', drawBorder: false },
+                            ticks: {
+                                font: { family: 'Poppins', size: 10 },
+                                color: '#94A3B8',
+                                callback: function(v) { return fmtRp(v); },
+                            },
+                        },
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#fff', bodyColor: '#64748B', titleColor: '#1E293B',
-                            borderColor: '#E2E8F0', borderWidth: 1, padding: 12,
-                            callbacks: { label: function(c) { return 'Rp ' + c.parsed.y.toLocaleString('id-ID'); } }
-                        }
-                    }
-                }
+                        tooltip: Object.assign({}, tooltipStyle, {
+                            callbacks: {
+                                title: function(ctx) { return 'Periode ' + ctx[0].label; },
+                                label: function(ctx) { return 'Pendapatan: Rp ' + ctx.parsed.y.toLocaleString('id-ID'); },
+                            },
+                        }),
+                    },
+                    interaction: { mode: 'index', intersect: false },
+                },
             });
+        } else if (shipCtx) {
+            // No data — show empty state
+            var emptyCtx = shipCtx.getContext('2d');
+            emptyCtx.font = '600 14px Poppins';
+            emptyCtx.fillStyle = '#94A3B8';
+            emptyCtx.textAlign = 'center';
+            emptyCtx.fillText('Belum ada data pengiriman', shipCtx.width / 2, shipCtx.height / 2);
         }
     });
 </script>

@@ -275,8 +275,8 @@ router.get('/admin/laporan', requireAuth, requireRole(['admin']), async (req, re
                 if (createdAt.toDate) date = createdAt.toDate();
                 else if (createdAt._seconds) date = new Date(createdAt._seconds * 1000);
                 else date = new Date(createdAt);
-                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0');
-                if (!branch.monthly[key]) branch.monthly[key] = { month: key, total: 0, count: 0 };
+                const key = date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+                if (!branch.monthly[key]) branch.monthly[key] = { day: key, total: 0, count: 0 };
                 branch.monthly[key].total += s.total;
                 branch.monthly[key].count += 1;
             }
@@ -294,13 +294,13 @@ router.get('/admin/laporan', requireAuth, requireRole(['admin']), async (req, re
 
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
         const branches = Object.values(branchMap).map(b => {
-            const monthlyArr = Object.values(b.monthly)
-                .sort((a, c) => a.month.localeCompare(c.month))
+            const dailyArr = Object.values(b.monthly)
+                .sort((a, c) => a.day.localeCompare(c.day))
                 .map(m => {
-                    const [y, mo] = m.month.split('-');
-                    return { ...m, label: monthNames[parseInt(mo) - 1] + ' ' + y };
+                    const [y, mo, d] = m.day.split('-');
+                    return { ...m, label: parseInt(d) + ' ' + monthNames[parseInt(mo) - 1] + ' ' + y };
                 });
-            return { ...b, monthly: monthlyArr };
+            return { ...b, monthly: dailyArr };
         }).sort((a, c) => c.totalPendapatan - a.totalPendapatan);
 
         let grandTotalPendapatan = 0, grandTotalTransaksi = 0, grandTotalItem = 0;
