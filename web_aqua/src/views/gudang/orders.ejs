@@ -1,141 +1,384 @@
-<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
-    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
-        <span style="margin-right:0.5rem;">&#128230;</span>Pengemasan
-    </h1>
-</div>
+<%
+    var list = Array.isArray(orders) ? orders : [];
+    var umap = (usersMap && typeof usersMap === 'object') ? usersMap : {};
+
+    function gdDate(v) {
+        if (!v) return null;
+        return new Date(v._seconds ? v._seconds * 1000 : v);
+    }
+    function gdFmt(v, withTime) {
+        var d = gdDate(v);
+        if (!d || isNaN(d)) return '—';
+        var opt = { day: '2-digit', month: 'short', year: 'numeric' };
+        if (withTime) { opt.hour = '2-digit'; opt.minute = '2-digit'; }
+        return d.toLocaleDateString('id-ID', opt);
+    }
+    function rupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+    function namaCabang(o) {
+        var c = umap[o.cabang_id];
+        if (!c) return o.cabang_id || '—';
+        return c.nama_cabang || c.username || o.cabang_id || '—';
+    }
+
+    var STATUS_LABEL = {
+        approved_admin: 'Siap dikemas',
+        dipaket: 'Sedang dikemas',
+        dikirim: 'Sudah dikirim'
+    };
+
+    // Ringkasan antrean gudang
+    var nSiap = 0, nDikemas = 0, nDikirim = 0, nUnit = 0, nilaiTotal = 0;
+    for (var k = 0; k < list.length; k++) {
+        var stk = String(list[k].status || '').toLowerCase();
+        if (stk === 'approved_admin') nSiap++;
+        else if (stk === 'dipaket') nDikemas++;
+        else if (stk === 'dikirim') nDikirim++;
+
+        nilaiTotal += Number(list[k].total_harga || 0);
+
+        var itk = Array.isArray(list[k].items) ? list[k].items : [];
+        for (var z = 0; z < itk.length; z++) nUnit += Number(itk[z].qty || 0);
+    }
+
+    var perluAksi = nSiap + nDikemas;
+
+    var buckets = [
+        { key: 'all', label: 'Semua', n: list.length },
+        { key: 'approved_admin', label: 'Siap dikemas', n: nSiap },
+        { key: 'dipaket', label: 'Sedang dikemas', n: nDikemas },
+        { key: 'dikirim', label: 'Sudah dikirim', n: nDikirim }
+    ];
+%>
 
 <style>
-    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1rem; }
-    .oct-card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-    .oct-card-body { padding: 1rem 1.25rem; }
-    .oct-pill { padding: 0.375em 1em; border-radius: 50rem; font-weight: 700; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: inline-block; }
-    .oct-pill-approved_admin { background: #06B6D4; }
-    .oct-pill-dipaket { background: var(--oct-yellow-dark); }
-    .oct-pill-dikirim { background: var(--oct-green-dark); }
-    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
-    .oct-btn-pack { background: var(--oct-yellow); color: #1E293B; border: none; border-radius: 8px; padding: 0.375rem 0.875rem; font-weight: 600; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(251,191,36,0.25); }
-    .oct-btn-pack:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(251,191,36,0.35); }
-    .oct-btn-send { background: var(--oct-green-dark); color: #fff; border: none; border-radius: 8px; padding: 0.375rem 0.875rem; font-weight: 600; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 8px rgba(22,163,74,0.25); }
-    .oct-btn-send:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(22,163,74,0.35); }
+    /* View-scoped only — shared components live in layouts/base.ejs */
+    .gdo-note {
+        display: inline-block;
+        max-width: 22ch;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .gdo-toolbar-seg { margin-left: auto; }
+
+    @media (max-width: 860px) {
+        .gdo-toolbar-seg { margin-left: 0; }
+    }
 </style>
 
-<!-- Filter -->
-<div class="card" style="margin-bottom:1rem; border-radius:16px;">
-    <div class="card-body" style="padding:0.75rem 1.25rem;">
-        <div class="d-flex align-items-center flex-wrap" style="gap:0.75rem;">
-            <span style="font-size:0.8125rem; font-weight:600; color:var(--oct-text-2);"><i class="fas fa-filter" style="margin-right:0.25rem;"></i> Filter</span>
-            <select id="filterStatus" class="form-control form-control-sm" style="max-width:180px;">
-                <option value="">Semua Status</option>
-                <option value="approved_admin">Siap Dikemas</option>
-                <option value="dipaket">Sedang Diproses</option>
-                <option value="dikirim">Sudah Dikirim</option>
-            </select>
-            <button id="filterResetBtn" class="btn btn-sm btn-outline-secondary"><i class="fas fa-undo"></i> Reset</button>
-        </div>
+<div class="oct-page-head">
+    <div>
+        <h1 class="oct-page-title">Pengemasan</h1>
+        <p class="oct-page-sub">Kemas pesanan yang sudah disetujui admin, lalu kirim ke cabang. Resi pengiriman dibuat otomatis saat barang dikirim.</p>
     </div>
+    <% if (perluAksi > 0) { %>
+    <div class="oct-page-actions">
+        <span class="oct-pill oct-pill-dot oct-pill-pending"><%= perluAksi %> pesanan menunggu diproses</span>
+    </div>
+    <% } %>
 </div>
 
-<% var list = Array.isArray(orders) ? orders : []; %>
-
 <% if (list.length === 0) { %>
-    <div class="oct-card"><div class="oct-card-body text-center" style="padding:3rem;">
-        <i class="fas fa-boxes" style="font-size:2.5rem; color:var(--oct-text-muted); opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
-        <span style="color:var(--oct-text-muted);">Tidak ada pesanan untuk dikemas.</span>
-    </div></div>
-<% } %>
-
-<% for (var si = 0; si < list.length; si++) { %>
-    <% var o = list[si]; var st = (o.status || '').toLowerCase(); var cabang = (usersMap && usersMap[o.cabang_id]) ? usersMap[o.cabang_id] : null; %>
-    <div class="oct-card" data-status="<%= st %>">
-        <div class="oct-card-header">
-            <div>
-                <div style="font-weight:700; margin-bottom:0.375rem;">
-                    <span class="oct-kode"><%= o.kode_order %></span>
-                    <% if (o.kode_pengiriman) { %><span style="color:var(--oct-text-muted); font-size:0.8125rem; margin-left:0.5rem;">Resi: <%= o.kode_pengiriman %></span><% } %>
-                </div>
-                <span style="color:var(--oct-text-muted); font-size:0.8125rem;">
-                    <i class="fas fa-store" style="margin-right:0.25rem;"></i> <%= cabang ? cabang.username || cabang.nama_cabang : o.cabang_id %>
-                </span>
-            </div>
-            <span class="oct-pill oct-pill-<%= st %>">
-                <% if (st === 'approved_admin') { %>SIAP DIKEMAS<% } %>
-                <% if (st === 'dipaket') { %>DIKEMAS<% } %>
-                <% if (st === 'dikirim') { %>DIKIRIM<% } %>
-            </span>
+    <div class="oct-card">
+        <div class="oct-empty">
+            <div class="oct-empty-icon"><i class="fas fa-boxes-stacked"></i></div>
+            <h2 class="oct-empty-title">Tidak ada pesanan untuk dikemas</h2>
+            <p class="oct-empty-text">Pesanan cabang yang sudah diverifikasi admin akan muncul di sini beserta tombol pengemasan dan pengirimannya.</p>
         </div>
-        <div class="oct-card-body">
-            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:0.75rem; font-size:0.875rem; margin-bottom:1rem;">
-                <div>Total: <strong>Rp <%= (o.total_harga || 0).toLocaleString('id-ID') %></strong></div>
-                <div>Item: <strong><%= (o.items || []).length %></strong></div>
-                <div class="text-right" style="color:var(--oct-text-muted);"><%= (o.catatan_packing || '') %></div>
+    </div>
+<% } else { %>
+
+    <!-- Ringkasan -->
+    <div class="oct-panel mb-3">
+        <div class="oct-kpi-grid">
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-box"></i></span>
+                    <span class="oct-kpi-label">Siap dikemas</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= nSiap %></span>
+                    <% if (nSiap > 0) { %>
+                        <span class="oct-delta oct-delta-warn"><i class="fas fa-clock"></i> perlu dikerjakan</span>
+                    <% } else { %>
+                        <span class="oct-kpi-note">antrean kosong</span>
+                    <% } %>
+                </div>
             </div>
-            <div class="d-flex" style="gap:0.625rem;">
-                <a href="/gudang/orders/<%= o.id %>" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye" style="margin-right:0.25rem;"></i> Detail</a>
-                <% if (st === 'approved_admin') { %>
-                    <button class="oct-btn-pack" onclick="packOrder('<%= o.id %>')"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
-                <% } %>
-                <% if (st === 'dipaket') { %>
-                    <button class="oct-btn-send" onclick="sendOrder('<%= o.id %>')"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Kirim Barang</button>
-                <% } %>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-boxes-packing"></i></span>
+                    <span class="oct-kpi-label">Sedang dikemas</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= nDikemas %></span>
+                    <span class="oct-kpi-note">menunggu dikirim</span>
+                </div>
+            </div>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-truck-fast"></i></span>
+                    <span class="oct-kpi-label">Sudah dikirim</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= nDikirim %></span>
+                    <span class="oct-kpi-note">dalam perjalanan</span>
+                </div>
+            </div>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-cubes"></i></span>
+                    <span class="oct-kpi-label">Nilai barang di antrean</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value oct-kpi-value-sm"><%= rupiah(nilaiTotal) %></span>
+                </div>
+                <div class="oct-kpi-foot"><%= nUnit.toLocaleString('id-ID') %> unit dari <%= list.length %> pesanan</div>
             </div>
         </div>
     </div>
+
+    <!-- Antrean pengemasan -->
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Antrean pengemasan</h2>
+                <p class="oct-card-sub" id="gdCount"><%= list.length %> pesanan ditampilkan</p>
+            </div>
+            <div class="oct-row">
+                <div class="oct-search">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <label class="oct-sr" for="gdSearch">Cari pesanan</label>
+                    <input type="text" id="gdSearch" placeholder="Cari kode pesanan, resi atau cabang…" autocomplete="off">
+                </div>
+                <div class="oct-seg gdo-toolbar-seg" id="gdSeg" role="tablist" aria-label="Saring berdasarkan status">
+                    <% for (var bi = 0; bi < buckets.length; bi++) { var b = buckets[bi]; %>
+                        <button type="button" role="tab" class="oct-seg-item <%= bi === 0 ? 'active' : '' %>" data-bucket="<%= b.key %>" aria-selected="<%= bi === 0 %>">
+                            <%= b.label %><span class="oct-seg-count"><%= b.n %></span>
+                        </button>
+                    <% } %>
+                </div>
+                <button type="button" class="oct-icon-btn" id="gdReset" title="Reset filter" aria-label="Reset filter">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
+
+        <div class="oct-card-body">
+            <div class="oct-tablewrap oct-tablewrap-card">
+                <table class="oct-table" id="gdTable">
+                    <thead>
+                        <tr>
+                            <th class="col-fit">#</th>
+                            <th>Pesanan</th>
+                            <th>Cabang</th>
+                            <th>Catatan packing</th>
+                            <th class="num">Item</th>
+                            <th class="num">Total</th>
+                            <th class="col-fit">Status</th>
+                            <th class="oct-td-actions">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% for (var si = 0; si < list.length; si++) {
+                            var o = list[si];
+                            var st = String(o.status || '').toLowerCase();
+                            var itemsO = Array.isArray(o.items) ? o.items : [];
+                            var cari = ((o.kode_order || '') + ' ' + (o.kode_pengiriman || '') + ' ' + namaCabang(o)).toLowerCase();
+                        %>
+                        <tr data-status="<%= st %>" data-search="<%= cari %>">
+                            <td class="col-fit oct-td-muted"><%= si + 1 %></td>
+                            <td>
+                                <span class="oct-cell-stack">
+                                    <span class="oct-cell-main oct-mono"><%= o.kode_order || '—' %></span>
+                                    <span class="oct-cell-sub">
+                                        <% if (o.kode_pengiriman) { %>
+                                            Resi <span class="oct-mono"><%= o.kode_pengiriman %></span>
+                                        <% } else { %>
+                                            <%= gdFmt(o.createdAt, false) %>
+                                        <% } %>
+                                    </span>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="oct-cell-media">
+                                    <span class="oct-avatar oct-avatar-sm"><i class="fas fa-store" style="font-size:0.6875rem;"></i></span>
+                                    <span class="oct-cell-stack">
+                                        <span class="oct-cell-main"><%= namaCabang(o) %></span>
+                                        <span class="oct-cell-sub"><%= gdFmt(o.createdAt, false) %></span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="oct-td-muted">
+                                <% if (o.catatan_packing) { %>
+                                    <span class="gdo-note" title="<%= o.catatan_packing %>"><%= o.catatan_packing %></span>
+                                <% } else { %>—<% } %>
+                            </td>
+                            <td class="num"><%= itemsO.length.toLocaleString('id-ID') %></td>
+                            <td class="num oct-td-strong"><%= rupiah(o.total_harga) %></td>
+                            <td class="col-fit">
+                                <span class="oct-pill oct-pill-dot oct-pill-<%= st %>"><%= STATUS_LABEL[st] || st || '—' %></span>
+                            </td>
+                            <td class="oct-td-actions">
+                                <a href="/gudang/orders/<%= o.id %>" class="oct-icon-btn oct-icon-btn-primary" title="Lihat detail pesanan" aria-label="Lihat detail pesanan <%= o.kode_order || '' %>">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <% if (st === 'approved_admin') { %>
+                                    <button type="button" class="oct-icon-btn oct-icon-btn-primary" onclick="packOrder('<%= o.id %>')" title="Tandai dikemas" aria-label="Tandai pesanan <%= o.kode_order || '' %> sudah dikemas">
+                                        <i class="fas fa-box"></i>
+                                    </button>
+                                <% } %>
+                                <% if (st === 'dipaket') { %>
+                                    <button type="button" class="oct-icon-btn oct-icon-btn-primary" onclick="sendOrder('<%= o.id %>')" title="Kirim barang" aria-label="Kirim barang untuk pesanan <%= o.kode_order || '' %>">
+                                        <i class="fas fa-truck"></i>
+                                    </button>
+                                <% } %>
+                            </td>
+                        </tr>
+                        <% } %>
+                        <tr id="gdNoMatch" hidden>
+                            <td colspan="8" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada pesanan yang cocok dengan filter.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
 <% } %>
 
-<!-- Pack Modal -->
-<div class="modal fade" id="modalPack" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<!-- Modal: tandai dikemas -->
+<div class="modal fade" id="modalPack" tabindex="-1" role="dialog" aria-labelledby="modalPackLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
         <form id="formPack" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header"><h5 class="modal-title">Tandai Dikemas</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="modalPackLabel">Tandai dikemas</h5>
+                    <p class="oct-card-sub">Konfirmasi bahwa pesanan sudah dikemas dan siap dikirim.</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" title="Tutup" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
             <div class="modal-body">
-                <p style="color:var(--oct-text-muted); font-size:0.875rem;">Konfirmasi bahwa pesanan sudah dikemas dan siap dikirim.</p>
-                <div class="form-group"><label style="font-weight:600;">Catatan Packing (opsional)</label><textarea name="catatan_packing" class="form-control" rows="3" placeholder="Contoh: dus karton, segel aman"></textarea></div>
+                <div class="form-group mb-0">
+                    <label for="packCatatan">Catatan packing <span class="oct-label-hint">(opsional)</span></label>
+                    <textarea name="catatan_packing" id="packCatatan" class="form-control" rows="3" placeholder="Contoh: dus karton, segel aman."></textarea>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="oct-btn-pack" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
+                <button class="btn btn-primary" type="submit"><i class="fas fa-box mr-2"></i>Tandai dikemas</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Send Modal -->
-<div class="modal fade" id="modalSend" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<!-- Modal: kirim barang -->
+<div class="modal fade" id="modalSend" tabindex="-1" role="dialog" aria-labelledby="modalSendLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
         <form id="formSend" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header"><h5 class="modal-title">Kirim Barang</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="modalSendLabel">Kirim barang</h5>
+                    <p class="oct-card-sub">Langkah ini tidak dapat dibatalkan dari halaman gudang.</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" title="Tutup" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
             <div class="modal-body">
-                <div class="alert alert-info"><i class="fas fa-info-circle" style="margin-right:0.375rem;"></i> Barang akan dikirim ke cabang dan resi pengiriman akan dibuat otomatis.</div>
-                <p style="color:var(--oct-text-muted); font-size:0.875rem; margin:0;">Lanjutkan pengiriman barang ini?</p>
+                <div class="oct-note oct-note-accent mb-3">
+                    <i class="fas fa-circle-info"></i>
+                    <span>Barang dikirim ke cabang dan resi pengiriman dibuat otomatis.</span>
+                </div>
+                <p class="oct-card-sub mb-0">Lanjutkan pengiriman barang ini?</p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="oct-btn-send" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Ya, Kirim</button>
+                <button class="btn btn-primary" type="submit"><i class="fas fa-truck mr-2"></i>Ya, kirim</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    (function() {
-        var params = new URLSearchParams(window.location.search);
-        var ok = params.get('ok'), err = params.get('err');
-        if (ok && typeof Swal !== 'undefined') {
-            var title = ok === 'packed' ? 'Pesanan ditandai sudah dikemas!' : ok === 'sent' ? 'Barang berhasil dikirim!' : ok;
-            Swal.fire({toast:true,position:'top-end',icon:'success',title:title,showConfirmButton:false,timer:3000,timerProgressBar:true});
-            params.delete('ok'); window.history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():''));
-        }
-        if (err && typeof Swal !== 'undefined') { Swal.fire({icon:'error',title:'Gagal',text:err,confirmButtonColor:'#3B82F6'}); params.delete('err'); window.history.replaceState({},'',location.pathname+(params.toString()?'?'+params.toString():'')); }
+    (function () {
+        /* ── Filter: pencarian + segmented status ──────────────── */
+        var table = document.getElementById('gdTable');
+        if (table) {
+            var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr[data-status]'));
+            var searchEl = document.getElementById('gdSearch');
+            var segEl = document.getElementById('gdSeg');
+            var resetEl = document.getElementById('gdReset');
+            var emptyRow = document.getElementById('gdNoMatch');
+            var countEl = document.getElementById('gdCount');
+            var bucket = 'all';
 
-        var filterStatus = document.getElementById('filterStatus');
-        var filterResetBtn = document.getElementById('filterResetBtn');
-        var cards = document.querySelectorAll('.oct-card[data-status]');
-        filterStatus.addEventListener('change', function() { var v = filterStatus.value; cards.forEach(function(c) { c.style.display = (!v || c.getAttribute('data-status') === v) ? '' : 'none'; }); });
-        filterResetBtn.addEventListener('click', function() { filterStatus.value = ''; cards.forEach(function(c) { c.style.display = ''; }); });
+            function applyFilter() {
+                var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+                var shown = 0;
+
+                rows.forEach(function (row) {
+                    var okBucket = bucket === 'all' || row.getAttribute('data-status') === bucket;
+                    var okSearch = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
+                    var hit = okBucket && okSearch;
+                    row.hidden = !hit;
+                    if (hit) shown++;
+                });
+
+                if (emptyRow) emptyRow.hidden = shown !== 0;
+                if (countEl) countEl.textContent = shown + ' pesanan ditampilkan';
+            }
+
+            function setBucket(key) {
+                bucket = key;
+                if (!segEl) return;
+                segEl.querySelectorAll('.oct-seg-item').forEach(function (b) {
+                    var on = b.dataset.bucket === key;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+            }
+
+            if (searchEl) searchEl.addEventListener('input', applyFilter);
+
+            if (segEl) {
+                segEl.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.oct-seg-item');
+                    if (!btn) return;
+                    setBucket(btn.dataset.bucket);
+                    applyFilter();
+                });
+            }
+
+            if (resetEl) {
+                resetEl.addEventListener('click', function () {
+                    if (searchEl) searchEl.value = '';
+                    setBucket('all');
+                    applyFilter();
+                });
+            }
+        }
+
+        /* ── Flash messages ────────────────────────────────────── */
+        Aqua.flash({
+            packed: 'Pesanan ditandai sudah dikemas',
+            sent: 'Barang berhasil dikirim'
+        });
     })();
 
-    function packOrder(id) { var form = document.getElementById('formPack'); form.action = '/gudang/orders/' + id + '/pack'; form.querySelector('textarea').value = ''; $('#modalPack').modal('show'); }
-    function sendOrder(id) { var form = document.getElementById('formSend'); form.action = '/gudang/orders/' + id + '/send'; $('#modalSend').modal('show'); }
+    function packOrder(id) {
+        var form = document.getElementById('formPack');
+        form.action = '/gudang/orders/' + id + '/pack';
+        form.querySelector('textarea').value = '';
+        $('#modalPack').modal('show');
+    }
+
+    function sendOrder(id) {
+        var form = document.getElementById('formSend');
+        form.action = '/gudang/orders/' + id + '/send';
+        $('#modalSend').modal('show');
+    }
 </script>

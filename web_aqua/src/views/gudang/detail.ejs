@@ -1,173 +1,353 @@
-<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
-    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
-        <span style="margin-right:0.5rem;">&#128203;</span>Detail Pesanan
-    </h1>
-    <a href="/gudang/orders" class="btn btn-sm btn-outline-secondary"><i class="fas fa-arrow-left" style="margin-right:0.375rem;"></i> Kembali</a>
-</div>
+<%
+    var ord = order || null;
+
+    function gdDate(v) {
+        if (!v) return null;
+        return new Date(v._seconds ? v._seconds * 1000 : v);
+    }
+    function gdFmt(v, withTime) {
+        var d = gdDate(v);
+        if (!d || isNaN(d)) return '—';
+        var opt = { day: '2-digit', month: 'short', year: 'numeric' };
+        if (withTime) { opt.hour = '2-digit'; opt.minute = '2-digit'; }
+        return d.toLocaleDateString('id-ID', opt);
+    }
+    function rupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+
+    var STATUS_LABEL = {
+        pending: 'Menunggu', approved_admin: 'Siap dikemas', dipaket: 'Sedang dikemas',
+        dikirim: 'Sudah dikirim', diterima: 'Diterima', selesai: 'Selesai', ditolak: 'Ditolak'
+    };
+
+    var st = ord ? String(ord.status || '').toLowerCase() : '';
+    var itemsD = (ord && Array.isArray(ord.items)) ? ord.items : [];
+    var historyD = (ord && Array.isArray(ord.history)) ? ord.history : [];
+
+    var qtyTotal = 0, subTotal = 0;
+    for (var i0 = 0; i0 < itemsD.length; i0++) {
+        var q0 = Number(itemsD[i0].qty || 0);
+        qtyTotal += q0;
+        subTotal += Number(itemsD[i0].subtotal || (q0 * Number(itemsD[i0].harga || 0)) || 0);
+    }
+    var grandTotal = (ord && Number(ord.total_harga || 0)) || subTotal;
+
+    var alamatCabang = cabangInfo
+        ? [cabangInfo.jalan, cabangInfo.kota, cabangInfo.provinsi].filter(Boolean).join(', ')
+        : '';
+%>
 
 <style>
-    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
-    .oct-card-body { padding: 1.25rem 1.5rem; }
-    .oct-card-header-bar { padding: 1rem 1.25rem; border-bottom: 1px solid var(--oct-border-light); font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 0.9375rem; color: var(--oct-text); }
-    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
-    .oct-table { border-collapse: separate; border-spacing: 0; }
-    .oct-table thead th { border-bottom: 2px solid var(--oct-border); background: var(--oct-bg); color: var(--oct-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.06em; padding: 0.75rem 0.625rem; }
-    .oct-table td { border-top: 1px solid var(--oct-border-light); padding: 0.625rem; vertical-align: middle; font-size: 0.875rem; }
-    .oct-table tbody tr:hover { background: var(--oct-card-hover); }
-    .oct-info-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.875rem; margin-bottom: 1.25rem; }
-    .oct-info-field { padding: 0.75rem 1rem; background: var(--oct-bg); border-radius: 12px; border: 1px solid var(--oct-border-light); }
-    .oct-info-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-primary); margin-bottom: 0.25rem; }
-    .oct-info-value { font-size: 0.9375rem; font-weight: 500; color: var(--oct-text); }
-    .oct-btn-pack { background: var(--oct-yellow); color: #1E293B; border: none; border-radius: 10px; padding: 0.625rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
-    .oct-btn-pack:hover { transform: translateY(-1px); }
-    .oct-btn-send { background: var(--oct-green-dark); color: #fff; border: none; border-radius: 10px; padding: 0.625rem 1.25rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
-    .oct-btn-send:hover { transform: translateY(-1px); }
+    /* View-scoped only — shared components live in layouts/base.ejs */
+    .gdd-amount {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.375rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.15;
+        font-variant-numeric: tabular-nums;
+        color: var(--oct-text);
+    }
+
+    .gdd-head-amount { text-align: right; line-height: 1.25; }
+
+    .gdd-total {
+        color: var(--oct-primary);
+        font-size: 0.9375rem;
+    }
+
+    @media (max-width: 575px) {
+        .gdd-head-amount { text-align: left; }
+    }
 </style>
 
-<% if (!order) { %>
-    <div class="alert alert-danger">Pesanan tidak ditemukan.</div>
-    <% return; %>
-<% } %>
+<% if (!ord) { %>
 
-<!-- Order Info -->
-<div class="oct-card">
-    <div class="oct-card-body">
-        <div class="oct-info-row">
-            <div class="oct-info-field">
-                <div class="oct-info-label">Kode Order</div>
-                <div class="oct-info-value"><span class="oct-kode"><%= order.kode_order %></span></div>
-            </div>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Status</div>
-                <div class="oct-info-value" style="text-transform:capitalize;"><%= order.status %></div>
-            </div>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Cabang</div>
-                <div class="oct-info-value"><%= cabangInfo ? (cabangInfo.nama_cabang || cabangInfo.username) : order.cabang_id %></div>
-            </div>
-            <% if (cabangInfo) { %>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Alamat</div>
-                <div class="oct-info-value"><%= [cabangInfo.jalan, cabangInfo.kota, cabangInfo.provinsi].filter(Boolean).join(', ') || '-' %></div>
-            </div>
-            <% } %>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Total</div>
-                <div class="oct-info-value" style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.25rem; color:var(--oct-green-dark);">Rp <%= (order.total_harga || 0).toLocaleString('id-ID') %></div>
+    <div class="oct-page-head">
+        <div>
+            <h1 class="oct-page-title">Detail pesanan</h1>
+            <p class="oct-page-sub">Data pesanan yang diminta tidak tersedia.</p>
+        </div>
+        <div class="oct-page-actions">
+            <a href="/gudang/orders" class="btn btn-outline-secondary"><i class="fas fa-arrow-left mr-2"></i>Kembali</a>
+        </div>
+    </div>
+
+    <div class="oct-card">
+        <div class="oct-empty">
+            <div class="oct-empty-icon"><i class="fas fa-triangle-exclamation"></i></div>
+            <h2 class="oct-empty-title">Pesanan tidak ditemukan</h2>
+            <p class="oct-empty-text">Pesanan mungkin sudah dihapus atau tautannya tidak lagi berlaku. Kembali ke antrean untuk memilih pesanan lain.</p>
+            <div class="oct-empty-actions">
+                <a href="/gudang/orders" class="btn btn-primary">Buka antrean pengemasan</a>
             </div>
         </div>
-        <% if (order.keterangan || order.catatan_packing) { %>
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:0.875rem;">
-            <% if (order.keterangan) { %>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Keterangan</div>
-                <div class="oct-info-value"><%= order.keterangan %></div>
-            </div>
-            <% } %>
-            <% if (order.catatan_packing) { %>
-            <div class="oct-info-field">
-                <div class="oct-info-label">Catatan Packing</div>
-                <div class="oct-info-value"><%= order.catatan_packing %></div>
-            </div>
-            <% } %>
-        </div>
+    </div>
+
+<% } else { %>
+
+<div class="oct-page-head">
+    <div>
+        <h1 class="oct-page-title">Detail pesanan</h1>
+        <p class="oct-page-sub">Periksa rincian barang sebelum mengemas, lalu kirim ke cabang tujuan.</p>
+    </div>
+    <div class="oct-page-actions">
+        <% if (st === 'approved_admin') { %>
+            <button type="button" class="btn btn-primary" onclick="packOrder('<%= ord.id %>')">
+                <i class="fas fa-box mr-2"></i>Tandai dikemas
+            </button>
         <% } %>
+        <% if (st === 'dipaket') { %>
+            <button type="button" class="btn btn-primary" onclick="sendOrder('<%= ord.id %>')">
+                <i class="fas fa-truck mr-2"></i>Kirim barang
+            </button>
+        <% } %>
+        <a href="/gudang/orders" class="btn btn-outline-secondary"><i class="fas fa-arrow-left mr-2"></i>Kembali</a>
     </div>
 </div>
 
-<!-- Items -->
-<div class="oct-card">
-    <div class="oct-card-header-bar"><i class="fas fa-boxes-stacked" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Daftar Barang</div>
-    <div class="oct-card-body" style="padding:0;">
-        <div class="table-responsive">
-            <table class="table oct-table w-100 mb-0">
-                <thead><tr>
-                    <th style="width:48px;">#</th><th>SKU</th><th>Nama Produk</th><th>Satuan</th>
-                    <th class="text-right" style="width:80px;">Qty</th>
-                    <th class="text-right" style="width:120px;">Harga</th>
-                    <th class="text-right" style="width:130px;">Subtotal</th>
-                </tr></thead>
-                <tbody>
-                    <% var items = Array.isArray(order.items) ? order.items : []; for (var i = 0; i < items.length; i++) { var it = items[i]; var sub = Number(it.subtotal || it.qty * it.harga || 0); %>
-                    <tr>
-                        <td><%= i + 1 %></td><td><%= it.sku || '-' %></td><td><%= it.nama_produk || '-' %></td><td><%= it.satuan || '-' %></td>
-                        <td class="text-right font-weight-bold"><%= it.qty %></td>
-                        <td class="text-right">Rp <%= Number(it.harga || 0).toLocaleString('id-ID') %></td>
-                        <td class="text-right" style="color:var(--oct-primary); font-weight:600;">Rp <%= sub.toLocaleString('id-ID') %></td>
-                    </tr>
+<div class="oct-stack">
+
+    <!-- Ringkasan pesanan -->
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">
+                    <span class="oct-kode"><%= ord.kode_order || '—' %></span>
+                    <span class="oct-pill oct-pill-dot oct-pill-<%= st %>" style="margin-left:0.375rem;"><%= STATUS_LABEL[st] || st || '—' %></span>
+                </h2>
+                <p class="oct-card-sub">
+                    Dibuat <%= gdFmt(ord.createdAt, true) %>
+                    <% if (ord.updatedAt && String(ord.updatedAt) !== String(ord.createdAt)) { %>
+                        &middot; diperbarui <%= gdFmt(ord.updatedAt, true) %>
                     <% } %>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- History -->
-<% if (Array.isArray(order.history) && order.history.length > 0) { %>
-<div class="oct-card">
-    <div class="oct-card-header-bar"><i class="fas fa-clock-rotate-left" style="color:var(--oct-primary); margin-right:0.5rem;"></i> Riwayat Status</div>
-    <div class="oct-card-body">
-        <% order.history.forEach(function(h) { %>
-        <div style="padding:0.625rem 0; border-bottom:1px solid var(--oct-border-light);">
-            <div class="d-flex justify-content-between">
-                <strong style="color:var(--oct-text); text-transform:capitalize;"><%= h.status %></strong>
-                <span style="color:var(--oct-text-muted); font-size:0.8125rem;"><%= h.at ? new Date(h.at._seconds ? h.at._seconds * 1000 : h.at).toLocaleString('id-ID') : '-' %></span>
+                </p>
             </div>
-            <div style="color:var(--oct-text-muted); font-size:0.8125rem;">oleh: <%= h.by_username || h.by %></div>
-            <% if (h.note) { %><div style="color:var(--oct-text-muted); font-size:0.8125rem; margin-top:0.25rem;"><%= h.note %></div><% } %>
+            <div class="gdd-head-amount">
+                <div class="gdd-amount"><%= rupiah(grandTotal) %></div>
+                <div class="oct-card-sub"><%= itemsD.length %> produk &middot; <%= qtyTotal.toLocaleString('id-ID') %> unit</div>
+            </div>
         </div>
-        <% }); %>
-    </div>
-</div>
-<% } %>
 
-<!-- Actions -->
-<div class="d-flex" style="gap:0.75rem; margin-bottom:1.5rem;">
-    <% var st = (order.status || '').toLowerCase(); %>
-    <% if (st === 'approved_admin') { %>
-        <button class="oct-btn-pack" onclick="packOrder('<%= order.id %>')"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
+        <div class="oct-card-body">
+            <div class="oct-dl">
+                <div>
+                    <div class="oct-dl-key">Kode pesanan</div>
+                    <div class="oct-dl-val oct-mono"><%= ord.kode_order || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Cabang tujuan</div>
+                    <div class="oct-dl-val"><%= cabangInfo ? (cabangInfo.nama_cabang || cabangInfo.username || ord.cabang_id || '—') : (ord.cabang_id || '—') %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Alamat pengiriman</div>
+                    <div class="oct-dl-val"><%= alamatCabang || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Resi pengiriman</div>
+                    <div class="oct-dl-val <%= ord.kode_pengiriman ? 'oct-mono' : '' %>"><%= ord.kode_pengiriman || 'Belum dibuat' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Total tagihan</div>
+                    <div class="oct-dl-val"><%= rupiah(grandTotal) %></div>
+                </div>
+            </div>
+
+            <% if (ord.keterangan || ord.catatan_packing) { %>
+            <div class="oct-stack mt-3">
+                <% if (ord.keterangan) { %>
+                    <div class="oct-note">
+                        <i class="fas fa-note-sticky"></i>
+                        <span><strong>Keterangan cabang:</strong> <%= ord.keterangan %></span>
+                    </div>
+                <% } %>
+                <% if (ord.catatan_packing) { %>
+                    <div class="oct-note oct-note-accent">
+                        <i class="fas fa-box-open"></i>
+                        <span><strong>Catatan packing:</strong> <%= ord.catatan_packing %></span>
+                    </div>
+                <% } %>
+            </div>
+            <% } %>
+        </div>
+    </section>
+
+    <!-- Daftar barang -->
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Daftar barang</h2>
+                <p class="oct-card-sub">Cocokkan jumlah fisik dengan daftar ini sebelum menutup dus.</p>
+            </div>
+            <span class="oct-chip"><%= itemsD.length %> baris</span>
+        </div>
+
+        <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
+
+        <div class="oct-card-body">
+            <div class="oct-tablewrap oct-tablewrap-card">
+                <table class="oct-table">
+                    <thead>
+                        <tr>
+                            <th class="col-fit">#</th>
+                            <th>Produk</th>
+                            <th>Satuan</th>
+                            <th class="num">Qty</th>
+                            <th class="num">Harga</th>
+                            <th class="num">Subtotal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (itemsD.length === 0) { %>
+                            <tr><td colspan="6" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada barang pada pesanan ini.</td></tr>
+                        <% } %>
+                        <% for (var i = 0; i < itemsD.length; i++) {
+                            var it = itemsD[i];
+                            var qty = Number(it.qty || 0);
+                            var sub = Number(it.subtotal || (qty * Number(it.harga || 0)) || 0);
+                        %>
+                        <tr>
+                            <td class="col-fit oct-td-muted"><%= i + 1 %></td>
+                            <td>
+                                <div class="oct-cell-media">
+                                    <% if (it.gambar_url) { %>
+                                        <img class="oct-thumb" src="<%= it.gambar_url %>" alt="Foto produk <%= it.nama_produk || 'tanpa nama' %>" loading="lazy">
+                                    <% } else { %>
+                                        <span class="oct-thumb oct-thumb-empty"><i class="fas fa-image"></i></span>
+                                    <% } %>
+                                    <span class="oct-cell-stack">
+                                        <span class="oct-cell-main"><%= it.nama_produk || '—' %></span>
+                                        <span class="oct-cell-sub oct-mono"><%= it.sku || '—' %></span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="oct-td-muted"><%= it.satuan || '—' %></td>
+                            <td class="num oct-td-strong"><%= qty.toLocaleString('id-ID') %></td>
+                            <td class="num"><%= rupiah(it.harga) %></td>
+                            <td class="num oct-td-strong"><%= rupiah(sub) %></td>
+                        </tr>
+                        <% } %>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="oct-td-muted">Grand total</td>
+                            <td class="num"><%= qtyTotal.toLocaleString('id-ID') %></td>
+                            <td class="num"></td>
+                            <td class="num gdd-total"><%= rupiah(grandTotal) %></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Riwayat status -->
+    <% if (historyD.length > 0) { %>
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Riwayat status</h2>
+                <p class="oct-card-sub">Jejak perubahan status pesanan beserta pelakunya.</p>
+            </div>
+            <span class="oct-chip"><%= historyD.length %> langkah</span>
+        </div>
+        <div class="oct-card-body">
+            <ol class="oct-timeline oct-tl-rail">
+                <% for (var h = 0; h < historyD.length; h++) {
+                    var ev = historyD[h] || {};
+                    var evSt = String(ev.status || '').toLowerCase();
+                    var dotCls = evSt === 'ditolak' ? 'oct-dot-bad'
+                               : (evSt === 'diterima' || evSt === 'selesai') ? 'oct-dot-ok'
+                               : evSt === 'pending' ? 'oct-dot-warn'
+                               : evSt === 'dikirim' ? 'oct-dot-blue' : 'oct-dot-info';
+                %>
+                <li class="oct-tl-item">
+                    <span class="oct-dot <%= dotCls %>"></span>
+                    <div class="oct-tl-body">
+                        <p class="oct-tl-text"><%= STATUS_LABEL[evSt] || ev.status || '—' %></p>
+                        <p class="oct-tl-sub">oleh <%= ev.by_username || ev.by || '—' %><% if (ev.note) { %> &middot; <%= ev.note %><% } %></p>
+                    </div>
+                    <span class="oct-tl-time"><%= gdFmt(ev.at, true) %></span>
+                </li>
+                <% } %>
+            </ol>
+        </div>
+    </section>
     <% } %>
-    <% if (st === 'dipaket') { %>
-        <button class="oct-btn-send" onclick="sendOrder('<%= order.id %>')"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Kirim Barang</button>
-    <% } %>
-    <a href="/gudang/orders" class="btn btn-outline-secondary"><i class="fas fa-arrow-left" style="margin-right:0.375rem;"></i> Kembali</a>
+
 </div>
 
-<!-- Pack Modal -->
-<div class="modal fade" id="modalPack" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<!-- Modal: tandai dikemas -->
+<div class="modal fade" id="modalPack" tabindex="-1" role="dialog" aria-labelledby="modalPackLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
         <form id="formPack" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header"><h5 class="modal-title">Tandai Dikemas</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="modalPackLabel">Tandai dikemas</h5>
+                    <p class="oct-card-sub">Konfirmasi bahwa pesanan sudah dikemas dan siap dikirim.</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" title="Tutup" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
             <div class="modal-body">
-                <div class="form-group"><label style="font-weight:600;">Catatan Packing (opsional)</label><textarea name="catatan_packing" class="form-control" rows="3"></textarea></div>
+                <div class="form-group mb-0">
+                    <label for="packCatatan">Catatan packing <span class="oct-label-hint">(opsional)</span></label>
+                    <textarea name="catatan_packing" id="packCatatan" class="form-control" rows="3" placeholder="Contoh: dus karton, segel aman."></textarea>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="oct-btn-pack" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-box" style="margin-right:0.375rem;"></i> Tandai Dikemas</button>
+                <button class="btn btn-primary" type="submit"><i class="fas fa-box mr-2"></i>Tandai dikemas</button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Send Modal -->
-<div class="modal fade" id="modalSend" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog" role="document">
+<!-- Modal: kirim barang -->
+<div class="modal fade" id="modalSend" tabindex="-1" role="dialog" aria-labelledby="modalSendLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
         <form id="formSend" method="POST" class="modal-content">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header"><h5 class="modal-title">Kirim Barang</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="modalSendLabel">Kirim barang</h5>
+                    <p class="oct-card-sub">Langkah ini tidak dapat dibatalkan dari halaman gudang.</p>
+                </div>
+                <button type="button" class="close" data-dismiss="modal" title="Tutup" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
+            </div>
             <div class="modal-body">
-                <div class="alert alert-info"><i class="fas fa-info-circle" style="margin-right:0.375rem;"></i> Resi pengiriman akan dibuat otomatis. Barang akan dikirim ke cabang.</div>
+                <div class="oct-note oct-note-accent">
+                    <i class="fas fa-circle-info"></i>
+                    <span>Resi pengiriman dibuat otomatis dan barang dikirim ke cabang tujuan.</span>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="oct-btn-send" type="submit" style="border-radius:10px; padding:0.625rem 1.25rem;"><i class="fas fa-truck" style="margin-right:0.375rem;"></i> Ya, Kirim</button>
+                <button class="btn btn-primary" type="submit"><i class="fas fa-truck mr-2"></i>Ya, kirim</button>
             </div>
         </form>
     </div>
 </div>
 
+<% } %>
+
 <script>
-    function packOrder(id) { var form = document.getElementById('formPack'); form.action = '/gudang/orders/' + id + '/pack'; form.querySelector('textarea').value = ''; $('#modalPack').modal('show'); }
-    function sendOrder(id) { var form = document.getElementById('formSend'); form.action = '/gudang/orders/' + id + '/send'; $('#modalSend').modal('show'); }
+    (function () {
+        Aqua.flash({
+            packed: 'Pesanan ditandai sudah dikemas',
+            sent: 'Barang berhasil dikirim'
+        });
+    })();
+
+    function packOrder(id) {
+        var form = document.getElementById('formPack');
+        form.action = '/gudang/orders/' + id + '/pack';
+        form.querySelector('textarea').value = '';
+        $('#modalPack').modal('show');
+    }
+
+    function sendOrder(id) {
+        var form = document.getElementById('formSend');
+        form.action = '/gudang/orders/' + id + '/send';
+        $('#modalSend').modal('show');
+    }
 </script>

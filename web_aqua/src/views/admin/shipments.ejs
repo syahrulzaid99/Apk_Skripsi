@@ -1,210 +1,754 @@
-<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
-    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
-        <span style="margin-right:0.5rem;">&#128666;</span>Pengiriman
-    </h1>
-</div>
+<%
+    var list = (typeof shipments !== 'undefined' && Array.isArray(shipments)) ? shipments : [];
+    var cabList = (typeof cabangs !== 'undefined' && Array.isArray(cabangs)) ? cabangs : [];
+    var uMap = (typeof usersMap !== 'undefined' && usersMap) ? usersMap : {};
+    var pMap = (typeof productsMap !== 'undefined' && productsMap) ? productsMap : {};
+
+    function asDate(v) {
+        if (!v) return null;
+        return new Date(v._seconds ? v._seconds * 1000 : v);
+    }
+    function asFmt(v, withTime) {
+        var d = asDate(v);
+        if (!d || isNaN(d)) return '—';
+        var opt = { day: '2-digit', month: 'short', year: 'numeric' };
+        if (withTime) { opt.hour = '2-digit'; opt.minute = '2-digit'; }
+        return d.toLocaleDateString('id-ID', opt);
+    }
+    function rupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+
+    function itemsOf(s) { return Array.isArray(s.data_barang) ? s.data_barang : []; }
+    function productOf(it) {
+        var pid = it.product_id || it.produk_id || it.productId || it.id || it.product || it.pid || it.id_produk;
+        return (pid && pMap[pid]) ? pMap[pid] : null;
+    }
+    function qtyKirimOf(it) {
+        return Number(it._qty || it.qty || it.jumlah || it.quantity || it.qty_in || it.qty_out || 0);
+    }
+    function unitPriceOf(it) {
+        var netVal = Number(it.item_net_value || it.harga) || 0;
+        var tax = Number(it.item_tax) || 0;
+        return netVal + tax;
+    }
+    function userLabel(uid) {
+        var u = uMap[uid];
+        if (!u) return uid || '—';
+        return u.username || u.nama_cabang || uid;
+    }
+    function userSearch(uid) {
+        var u = uMap[uid];
+        return u ? ((u.username || '') + ' ' + (u.nama_cabang || '')) : '';
+    }
+    function bucketOf(st) {
+        if (st === 'diterima') return 'diterima';
+        if (st === 'ditolak') return 'ditolak';
+        if (st === 'terkirim' || st === 'dikirim') return 'jalan';
+        return 'draft';
+    }
+
+    var STATUS_LABEL = {
+        draft: 'Draft', terkirim: 'Dalam perjalanan', dikirim: 'Dalam perjalanan',
+        diterima: 'Diterima', ditolak: 'Ditolak'
+    };
+
+    // Summary figures
+    var totalShp = list.length;
+    var nDraft = 0, nJalan = 0, nDiterima = 0, nDitolak = 0, nUnit = 0, nilaiTotal = 0;
+    for (var k = 0; k < list.length; k++) {
+        var bk = bucketOf(String(list[k].status || 'draft').toLowerCase());
+        if (bk === 'draft') nDraft++;
+        else if (bk === 'jalan') nJalan++;
+        else if (bk === 'diterima') nDiterima++;
+        else if (bk === 'ditolak') nDitolak++;
+
+        var itk = itemsOf(list[k]);
+        for (var z = 0; z < itk.length; z++) {
+            var qk = qtyKirimOf(itk[z]);
+            nUnit += qk;
+            nilaiTotal += qk * unitPriceOf(itk[z]);
+        }
+    }
+
+    // Segmented filter buckets
+    var buckets = [
+        { key: 'all', label: 'Semua', n: totalShp },
+        { key: 'draft', label: 'Draft', n: nDraft },
+        { key: 'jalan', label: 'Perjalanan', n: nJalan },
+        { key: 'diterima', label: 'Diterima', n: nDiterima },
+        { key: 'ditolak', label: 'Ditolak', n: nDitolak }
+    ];
+%>
 
 <style>
-    .oct-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
-    .oct-card-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-    .oct-card-body { padding: 1.25rem 1.5rem; }
-    .oct-pill { padding: 0.375em 1em; border-radius: 50rem; font-weight: 700; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: #fff; display: inline-block; }
-    .oct-pill-terkirim, .oct-pill-dikirim { background: #06B6D4; }
-    .oct-pill-diterima { background: var(--oct-green-dark); }
-    .oct-pill-ditolak { background: var(--oct-red); }
-    .oct-pill-draft { background: var(--oct-text-muted); }
-    .oct-kode { color: var(--oct-primary); background: var(--oct-primary-bg); padding: 0.25rem 0.625rem; border-radius: 6px; font-weight: 700; font-size: 0.8125rem; font-family: 'JetBrains Mono', monospace; }
-    .oct-btn-print { background: var(--oct-primary); color: #fff; padding: 0.375em 1em; border-radius: 50rem; font-weight: 600; font-size: 0.6875rem; text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 0.375rem; transition: all 0.15s ease; }
-    .oct-btn-print:hover { background: var(--oct-primary-dark); color: #fff; text-decoration: none; transform: translateY(-1px); }
-    .oct-btn-del { background: linear-gradient(135deg, #EF4444, #DC2626); color: #fff; border: none; border-radius: 8px; padding: 0.375rem 0.625rem; font-size: 0.8125rem; cursor: pointer; transition: all 0.15s ease; }
-    .oct-btn-del:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
-    .oct-table { border-collapse: separate; border-spacing: 0; }
-    .oct-table thead th { border-bottom: 2px solid var(--oct-border); background: var(--oct-bg); color: var(--oct-text-muted); font-weight: 600; text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.06em; padding: 0.75rem 0.625rem; }
-    .oct-table td { border-top: 1px solid var(--oct-border-light); padding: 0.625rem; vertical-align: middle; font-size: 0.875rem; }
-    .oct-table tbody tr:hover { background: var(--oct-card-hover); }
-    .oct-grand-total { font-weight: 900; font-size: 1.0625rem; background: linear-gradient(135deg, var(--oct-green-dark), #059669); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-    .bukti-img { border-radius: 8px; border: 2px solid var(--oct-card); box-shadow: 0 4px 10px rgba(0,0,0,0.1); transition: transform 0.2s ease; }
-    .bukti-img:hover { transform: scale(1.15); }
+    /* View-scoped only — shared components live in layouts/base.ejs */
+    .shp-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+        gap: var(--oct-gap);
+        align-items: start;
+    }
+
+    .shp-rail {
+        background: var(--oct-inset);
+        border: 1px solid var(--oct-border-light);
+        border-radius: var(--oct-r-lg);
+        padding: 0.75rem;
+        position: sticky;
+        top: 84px;
+        max-height: calc(100dvh - 108px);
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+    }
+
+    .shp-rail-list {
+        overflow-y: auto;
+        margin: 0 -0.25rem;
+        padding: 0 0.25rem;
+        scrollbar-width: thin;
+        scrollbar-color: var(--oct-border) transparent;
+    }
+
+    .shp-rail-list::-webkit-scrollbar { width: 6px; }
+    .shp-rail-list::-webkit-scrollbar-thumb { background: var(--oct-border); border-radius: 3px; }
+
+    .shp-rail-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0 0.25rem;
+    }
+
+    .shp-rail-count {
+        font-size: 0.6875rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--oct-text-muted);
+    }
+
+    /* Modifiers for shared components used inside this view.
+       Prefixed so the layout's own rules stay untouched. */
+    .shp-search { max-width: none; flex: none; }
+    .shp-item { align-items: flex-start; }
+    .shp-item-dot { margin-top: 0.4375rem; }
+    .shp-item-code { font-size: 0.8125rem; }
+    .shp-list-empty { padding: 0.75rem 0.25rem; text-align: left; }
+
+    .shp-filter-label {
+        display: block;
+        font-size: 0.625rem;
+        font-weight: 700;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--oct-text-muted);
+        margin-bottom: 0.1875rem;
+    }
+
+    .shp-detail[hidden] { display: none; }
+
+    .shp-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 1.125rem 1.25rem;
+        border-bottom: 1px solid var(--oct-border-light);
+    }
+
+    .shp-head-title {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-weight: 800;
+        font-size: 1.125rem;
+        letter-spacing: -0.03em;
+        margin: 0 0 0.3125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .shp-head-side {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        flex-wrap: wrap;
+    }
+
+    .shp-head-figure {
+        text-align: right;
+        line-height: 1.25;
+    }
+
+    .shp-head-figure b {
+        display: block;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        font-variant-numeric: tabular-nums;
+    }
+
+    /* Sender → receiver route line */
+    .shp-route {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        padding: 0.875rem 1.25rem;
+        background: var(--oct-inset);
+        border-bottom: 1px solid var(--oct-border-light);
+        flex-wrap: wrap;
+    }
+
+    .shp-route-node { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .shp-route-arrow { color: var(--oct-text-muted); font-size: 0.75rem; }
+
+    .shp-proofs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+    .shp-proof {
+        width: 76px;
+        height: 76px;
+        object-fit: cover;
+        border-radius: var(--oct-r-sm);
+        border: 1px solid var(--oct-border);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .shp-proof:hover { transform: scale(1.04); box-shadow: var(--oct-shadow-md); }
+
+    .shp-form-row {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .shp-form-status { flex: 0 0 170px; min-width: 150px; }
+    .shp-form-note { flex: 1 1 220px; min-width: 0; }
+
+    .shp-actions {
+        padding: 1rem 1.25rem;
+        border-top: 1px solid var(--oct-border-light);
+    }
+
+    @media (max-width: 1100px) {
+        .shp-layout { grid-template-columns: minmax(0, 1fr); }
+        .shp-rail { position: static; max-height: none; }
+        .shp-rail-list { max-height: 320px; }
+    }
 </style>
 
-<!-- Filter -->
-<div class="card" style="margin-bottom:1rem;">
-    <div class="card-body" style="padding:1rem 1.25rem;">
-        <!-- Search -->
-        <div class="input-group" style="margin-bottom:0.875rem;">
-            <div class="input-group-prepend"><span class="input-group-text" style="border-radius:10px 0 0 10px;"><i class="fas fa-search"></i></span></div>
-            <input id="filterSearch" class="form-control form-control-sm" placeholder="Cari kode resi, PO, SO, pengirim, atau penerima..." style="border-radius:0 10px 10px 0;">
-        </div>
-        <!-- Cabang filter -->
-        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.375rem;">
-            <span style="font-size:0.6875rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--oct-text-muted); margin-right:0.25rem;"><i class="fas fa-store" style="margin-right:0.25rem;"></i> Cabang</span>
-            <button type="button" class="btn btn-sm btn-primary filter-cabang active" data-cabang="all">Semua</button>
-            <% if(typeof cabangs !== 'undefined' && Array.isArray(cabangs)) { cabangs.forEach(function(c) { %>
-                <button type="button" class="btn btn-sm btn-outline-secondary filter-cabang" data-cabang="<%= c.id %>"><%= c.nama_cabang || c.username || c.id %></button>
-            <% }) } %>
-        </div>
+<div class="oct-page-head">
+    <div>
+        <h1 class="oct-page-title">Pengiriman</h1>
+        <p class="oct-page-sub">Pantau seluruh surat jalan dari pusat ke cabang, cetak resi, dan perbarui status kiriman yang belum diterima.</p>
     </div>
+    <% if (nJalan > 0) { %>
+    <div class="oct-page-actions">
+        <span class="oct-pill oct-pill-dot oct-pill-dikirim"><%= nJalan %> dalam perjalanan</span>
+    </div>
+    <% } %>
 </div>
 
-<% var list = Array.isArray(shipments) ? shipments : []; %>
+<% if (totalShp === 0) { %>
+    <div class="oct-card">
+        <div class="oct-empty">
+            <div class="oct-empty-icon"><i class="fas fa-truck-fast"></i></div>
+            <h2 class="oct-empty-title">Belum ada pengiriman</h2>
+            <p class="oct-empty-text">Surat jalan akan muncul di sini setelah gudang mengirim pesanan yang sudah dikemas.</p>
+        </div>
+    </div>
+<% } else { %>
 
-<% if (list.length === 0) { %>
-    <div class="oct-card"><div class="oct-card-body" style="padding:2rem; text-align:center; color:var(--oct-text-muted);">Tidak ada pengiriman.</div></div>
-<% } %>
-
-<% for (var si = 0; si < list.length; si++) { %>
-    <% var s = list[si]; var st = (s.status || '').toLowerCase(); var pengirim = (usersMap && usersMap[s.pengirim]) ? usersMap[s.pengirim] : null; var penerima = (usersMap && usersMap[s.penerima]) ? usersMap[s.penerima] : null; %>
-    <div class="oct-card" data-pengirim="<%= s.pengirim || '' %>" data-penerima="<%= s.penerima || '' %>" data-search="<%= ((s.kode_pengiriman || '') + ' ' + (s.po_number || '') + ' ' + (s.so_number || '') + ' ' + (pengirim ? (pengirim.username + ' ' + (pengirim.nama_cabang || '')) : '') + ' ' + (penerima ? (penerima.username + ' ' + (penerima.nama_cabang || '')) : '') + ' ' + (s.keterangan || '') + ' ' + (s.status || '')).toLowerCase() %>">
-        <div class="oct-card-header">
-            <div>
-                <div style="font-weight:700; margin-bottom:0.5rem;">Kode Resi: <span class="oct-kode"><%= s.kode_pengiriman %></span></div>
-                <div style="font-size:0.8125rem; color:var(--oct-text-muted); margin-bottom:0.25rem;">
-                    <i class="fas fa-file-invoice" style="margin-right:0.25rem;"></i> PO: <strong style="color:var(--oct-text);"><%= s.po_number || '-' %></strong>
-                    <span style="margin:0 0.5rem; color:var(--oct-border);">•</span> SO: <strong style="color:var(--oct-text);"><%= s.so_number || '-' %></strong>
+    <!-- Ringkasan -->
+    <div class="oct-panel mb-3">
+        <div class="oct-kpi-grid">
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-truck-fast"></i></span>
+                    <span class="oct-kpi-label">Total pengiriman</span>
                 </div>
-                <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
-                    <i class="fas fa-truck" style="margin-right:0.25rem;"></i> Asal: <strong style="color:var(--oct-text);"><%= pengirim ? pengirim.username : s.pengirim %></strong>
-                    <span style="color:var(--oct-primary); margin:0 0.5rem;">→</span> Tujuan: <strong style="color:var(--oct-text);"><%= penerima ? penerima.username : s.penerima %></strong>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= totalShp %></span>
+                    <span class="oct-kpi-note">surat jalan</span>
+                </div>
+                <div class="oct-kpi-foot"><%= nDraft %> masih berstatus draft</div>
+            </div>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-route"></i></span>
+                    <span class="oct-kpi-label">Dalam perjalanan</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= nJalan %></span>
+                    <% if (nJalan > 0) { %>
+                        <span class="oct-delta oct-delta-warn"><i class="fas fa-clock"></i> menunggu cabang</span>
+                    <% } else { %>
+                        <span class="oct-kpi-note">tidak ada kiriman aktif</span>
+                    <% } %>
                 </div>
             </div>
-            <div class="d-flex align-items-center" style="gap:0.625rem;">
-                <span class="oct-pill oct-pill-<%= st %>"><%= (s.status || 'draft').toUpperCase() %></span>
-                <a class="oct-btn-print" href="/admin/shipments/<%= s.id %>/resi" target="_blank"><i class="fas fa-print"></i> Cetak Resi</a>
-                <form method="POST" action="/admin/shipments/<%= s.id %>/delete" class="d-inline" data-confirm>
-                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                    <button type="submit" class="oct-btn-del"><i class="fas fa-trash"></i></button>
-                </form>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-box-open"></i></span>
+                    <span class="oct-kpi-label">Diterima cabang</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value"><%= nDiterima %></span>
+                    <% if (nDitolak > 0) { %>
+                        <span class="oct-delta oct-delta-down"><i class="fas fa-circle-xmark"></i> <%= nDitolak %> ditolak</span>
+                    <% } %>
+                </div>
+                <div class="oct-kpi-foot"><%= nUnit.toLocaleString('id-ID') %> unit dikirim seluruhnya</div>
+            </div>
+            <div class="oct-kpi oct-rise">
+                <div class="oct-kpi-head">
+                    <span class="oct-kpi-icon"><i class="fas fa-wallet"></i></span>
+                    <span class="oct-kpi-label">Nilai barang dikirim</span>
+                </div>
+                <div class="oct-kpi-body">
+                    <span class="oct-kpi-value oct-kpi-value-sm"><%= rupiah(nilaiTotal) %></span>
+                </div>
+                <div class="oct-kpi-foot">harga jual termasuk pajak</div>
             </div>
         </div>
+    </div>
 
-        <div class="oct-card-body">
-            <div class="table-responsive">
-                <table class="table oct-table w-100" style="margin-bottom:0.5rem;">
-                    <thead><tr>
-                        <th style="width:48px;">#</th><th style="width:64px;">Gambar</th><th>SKU</th><th>Nama Produk</th>
-                        <th style="width:100px;">Satuan</th><th style="width:130px;">Barcode</th>
-                        <th style="width:110px;" class="text-right">Harga</th><th style="width:90px;" class="text-right">Qty Kirim</th>
-                        <th style="width:90px;" class="text-right">Qty Terima</th><th style="width:130px;" class="text-right">Subtotal</th>
-                    </tr></thead>
-                    <tbody>
-                        <% var grandTotal = 0; var items = Array.isArray(s.data_barang) ? s.data_barang : []; for (var i = 0; i < items.length; i++) { var it = items[i]; var p = null; var pid = it.product_id || it.produk_id || it.productId || it.id || it.product || it.pid || it.id_produk; if (pid && productsMap && productsMap[pid]) { p = productsMap[pid]; } var qtyKirim = Number(it._qty || it.qty || it.jumlah || it.quantity || it.qty_in || it.qty_out || 0); var qtyTerima = it.qty_diterima != null ? Number(it.qty_diterima) : null; var sku = (p && p.sku) || it.sku || '-'; var nama = (p && p.nama_produk) || it.nama || it.nama_produk || '-'; var satuan = (p && p.satuan) || it.satuan || '-'; var barcode = (p && p.barcode) || it.barcode || '-'; var img = (p && p.gambar_url) || ''; var netVal = Number(it.item_net_value || it.harga) || 0; var tax = Number(it.item_tax) || 0; var unitPrice = netVal + tax; var subtotal = qtyKirim * unitPrice; grandTotal += subtotal; %>
-                        <tr>
-                            <td><%= i + 1 %></td>
-                            <td class="text-center"><% if (img) { %><img src="<%= img %>" alt="img" style="width:44px;height:44px;object-fit:cover;border-radius:8px;"><% } else { %><span style="color:var(--oct-text-muted); font-size:0.8125rem;">(no image)</span><% } %></td>
-                            <td><%= sku %></td><td><%= nama %></td><td><%= satuan %></td><td><%= barcode %></td>
-                            <td class="text-right">Rp <%= unitPrice.toLocaleString('id-ID') %></td>
-                            <td class="text-right font-weight-bold"><%= qtyKirim %></td>
-                            <td class="text-right"><% if (st === 'diterima' && qtyTerima != null) { %><%= qtyTerima %><% if (qtyTerima < qtyKirim) { %> <span class="badge badge-warning">kurang</span><% } %><% } else { %>-<% } %></td>
-                            <td class="text-right font-weight-bold" style="color:var(--oct-primary);">Rp <%= subtotal.toLocaleString('id-ID') %></td>
-                        </tr>
-                        <% } %>
-                    </tbody>
-                    <tfoot><tr style="background:var(--oct-bg);">
-                        <td colspan="8" class="text-right text-uppercase" style="font-weight:700; color:var(--oct-text-muted); font-size:0.75rem; letter-spacing:0.05em; vertical-align:middle;">Grand Total</td>
-                        <td colspan="2" class="text-right oct-grand-total">Rp <%= grandTotal.toLocaleString('id-ID') %></td>
-                    </tr></tfoot>
-                </table>
+    <!-- Daftar + detail -->
+    <div class="shp-layout">
+        <aside class="shp-rail">
+            <div class="oct-search shp-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <label class="oct-sr" for="filterSearch">Cari pengiriman</label>
+                <input type="text" id="filterSearch" placeholder="Cari resi, PO, SO, atau cabang…" autocomplete="off">
             </div>
 
-            <% if (st === 'diterima' && Array.isArray(s.bukti_penerimaan_urls) && s.bukti_penerimaan_urls.length) { %>
-                <div style="margin-top:1.25rem; padding:1rem; background:var(--oct-bg); border-radius:12px;">
-                    <div style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--oct-primary); margin-bottom:0.5rem;"><i class="fas fa-camera" style="margin-right:0.375rem;"></i> Bukti Penerimaan Cabang</div>
-                    <div class="d-flex flex-wrap" style="gap:0.625rem;">
-                        <% for (var b = 0; b < s.bukti_penerimaan_urls.length; b++) { %>
-                            <a href="<%= s.bukti_penerimaan_urls[b] %>" target="_blank"><img src="<%= s.bukti_penerimaan_urls[b] %>" class="bukti-img" style="width:85px;height:85px;object-fit:cover;"></a>
-                        <% } %>
-                    </div>
-                </div>
-            <% } %>
-
-            <% var loc = null; if (st === 'diterima' && s.lokasi_penerimaan) { loc = s.lokasi_penerimaan; } else if (st === 'ditolak' && s.lokasi_penolakan) { loc = s.lokasi_penolakan; } %>
-            <% if (loc && loc.lat != null && loc.lng != null) { %>
-                <div style="margin-top:1rem; padding:1rem; background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:12px;">
-                    <div style="display:flex; align-items:center; margin-bottom:0.5rem;">
-                        <i class="fas fa-map-marker-alt" style="color:var(--oct-red); margin-right:0.5rem;"></i>
-                        <span style="font-size:0.75rem; font-weight:600; text-transform:uppercase; color:var(--oct-yellow-dark); letter-spacing:0.05em;">Lokasi <%= st === 'diterima' ? 'Penerimaan' : 'Penolakan' %> Cabang</span>
-                    </div>
-                    <div style="font-size:0.8125rem;">
-                        <div style="margin-bottom:0.375rem;"><span style="color:var(--oct-text-muted);">Koordinat:</span> <strong style="font-family:monospace;"><%= loc.lat %>, <%= loc.lng %></strong></div>
-                        <% if (loc.accuracy != null) { %><div style="margin-bottom:0.375rem;"><span style="color:var(--oct-text-muted);">Akurasi:</span> <strong>±<%= Number(loc.accuracy).toFixed(0) %> m</strong></div><% } %>
-                        <% if (loc.address) { %><div style="margin-bottom:0.375rem;"><span style="color:var(--oct-text-muted);">Alamat:</span> <strong><%= loc.address %></strong></div><% } %>
-                        <a class="btn btn-sm btn-outline-danger" style="margin-top:0.375rem;" href="https://www.google.com/maps?q=<%= loc.lat %>,<%= loc.lng %>" target="_blank"><i class="fas fa-external-link-alt" style="margin-right:0.375rem;"></i> Buka di Google Maps</a>
-                    </div>
-                </div>
-            <% } %>
-
-            <div style="margin-top:1.25rem;">
-                <% if (st === 'diterima') { %>
-                    <div class="alert alert-success d-flex align-items-center" style="margin:0;"><i class="fas fa-check-circle" style="margin-right:0.75rem; font-size:1.125rem;"></i><div><strong>Pengiriman Sudah Diterima</strong><br><small style="color:var(--oct-text-muted);">Tidak dapat diubah lagi.</small></div></div>
-                <% } else { %>
-                    <form method="POST" action="/admin/shipments/<%= s.id %>" class="form-inline" data-confirm-status>
-                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <div class="form-group mb-2 mr-2">
-                            <label class="mr-2">Status</label>
-                            <select name="status" class="form-control form-control-sm">
-                                <option value="draft" <%= st === 'draft' ? 'selected' : '' %>>draft</option>
-                                <option value="terkirim" <%= (st === 'terkirim' || st === 'dikirim') ? 'selected' : '' %>>terkirim</option>
-                                <option value="diterima" <%= st === 'diterima' ? 'selected' : '' %>>diterima</option>
-                                <option value="ditolak" <%= st === 'ditolak' ? 'selected' : '' %>>ditolak</option>
-                            </select>
-                        </div>
-                        <div class="form-group mb-2 mr-2">
-                            <input type="text" name="keterangan" class="form-control form-control-sm" placeholder="Keterangan" value="<%= s.keterangan || '' %>">
-                        </div>
-                        <button type="submit" class="btn btn-sm btn-primary mb-2"><i class="fas fa-save" style="margin-right:0.375rem;"></i> Simpan</button>
-                    </form>
+            <div class="oct-seg" id="shpSeg" role="tablist" aria-label="Saring berdasarkan status">
+                <% for (var bi = 0; bi < buckets.length; bi++) { var b = buckets[bi]; %>
+                    <button type="button" role="tab" class="oct-seg-item <%= bi === 0 ? 'active' : '' %>" data-bucket="<%= b.key %>" aria-selected="<%= bi === 0 %>">
+                        <%= b.label %><span class="oct-seg-count"><%= b.n %></span>
+                    </button>
                 <% } %>
             </div>
+
+            <div>
+                <label class="shp-filter-label" for="filterCabang">Cabang</label>
+                <select id="filterCabang" class="form-control form-control-sm">
+                    <option value="all">Semua cabang</option>
+                    <% for (var ci = 0; ci < cabList.length; ci++) { var c = cabList[ci]; %>
+                        <option value="<%= c.id %>"><%= c.nama_cabang || c.username || c.id %></option>
+                    <% } %>
+                </select>
+            </div>
+
+            <div class="shp-rail-foot">
+                <span class="shp-rail-count" id="shpRailCount"><%= totalShp %> pengiriman</span>
+                <button type="button" id="filterResetBtn" class="oct-icon-btn" title="Atur ulang filter" aria-label="Atur ulang filter">
+                    <i class="fas fa-rotate-left"></i>
+                </button>
+            </div>
+
+            <div class="shp-rail-list oct-listnav" id="shpList" role="tablist" aria-label="Daftar pengiriman">
+                <% for (var si = 0; si < list.length; si++) {
+                    var s = list[si];
+                    var st = String(s.status || 'draft').toLowerCase();
+                    var bucket = bucketOf(st);
+                    var dotClass = bucket === 'diterima' ? 'oct-dot-ok'
+                                 : bucket === 'ditolak' ? 'oct-dot-bad'
+                                 : bucket === 'jalan' ? 'oct-dot-blue' : 'oct-dot-warn';
+                    var itemsR = itemsOf(s);
+                    var cariRow = ((s.kode_pengiriman || '') + ' ' + (s.po_number || '') + ' ' + (s.so_number || '') + ' ' +
+                                   userSearch(s.pengirim) + ' ' + userSearch(s.penerima) + ' ' +
+                                   (s.keterangan || '') + ' ' + (s.status || '')).toLowerCase();
+                %>
+                <button type="button" role="tab"
+                        class="oct-listnav-item shp-item <%= si === 0 ? 'active' : '' %>"
+                        data-target="shpDetail<%= si %>"
+                        data-bucket="<%= bucket %>"
+                        data-pengirim="<%= s.pengirim || '' %>"
+                        data-penerima="<%= s.penerima || '' %>"
+                        data-search="<%= cariRow %>"
+                        aria-selected="<%= si === 0 %>"
+                        aria-controls="shpDetail<%= si %>">
+                    <span class="oct-dot shp-item-dot <%= dotClass %>"></span>
+                    <span class="oct-listnav-meta">
+                        <span class="oct-listnav-title oct-mono shp-item-code"><%= s.kode_pengiriman || '—' %></span>
+                        <span class="oct-listnav-sub">PO <%= s.po_number || '—' %> &middot; <%= itemsR.length %> produk</span>
+                        <span class="oct-listnav-sub"><%= userLabel(s.penerima) %></span>
+                    </span>
+                </button>
+                <% } %>
+            </div>
+
+            <p class="oct-empty-text shp-list-empty" id="shpListEmpty" hidden>
+                Tidak ada pengiriman yang cocok dengan filter.
+            </p>
+        </aside>
+
+        <div class="shp-detail-host">
+            <% for (var di = 0; di < list.length; di++) {
+                var sd = list[di];
+                var st2 = String(sd.status || 'draft').toLowerCase();
+                var canEdit = (st2 !== 'diterima');
+                var itemsD = itemsOf(sd);
+                var totalKirim = 0, totalTerima = 0, adaTerima = false, grandTotal = 0;
+                for (var y = 0; y < itemsD.length; y++) {
+                    var qky = qtyKirimOf(itemsD[y]);
+                    totalKirim += qky;
+                    grandTotal += qky * unitPriceOf(itemsD[y]);
+                    if (itemsD[y].qty_diterima != null) { adaTerima = true; totalTerima += Number(itemsD[y].qty_diterima); }
+                }
+                var loc = null;
+                if (st2 === 'diterima' && sd.lokasi_penerimaan) loc = sd.lokasi_penerimaan;
+                else if (st2 === 'ditolak' && sd.lokasi_penolakan) loc = sd.lokasi_penolakan;
+                var buktiUrls = Array.isArray(sd.bukti_penerimaan_urls) ? sd.bukti_penerimaan_urls : [];
+            %>
+            <section class="oct-card shp-detail" id="shpDetail<%= di %>" role="tabpanel" <%= di === 0 ? '' : 'hidden' %>>
+                <header class="shp-head">
+                    <div>
+                        <h2 class="shp-head-title">
+                            <span class="oct-mono"><%= sd.kode_pengiriman || '—' %></span>
+                            <span class="oct-pill oct-pill-dot oct-pill-<%= st2 %>"><%= STATUS_LABEL[st2] || st2 %></span>
+                        </h2>
+                        <p class="oct-card-sub">
+                            Dibuat <%= asFmt(sd.createdAt, true) %>
+                            <% if (st2 === 'diterima') { %> &middot; dikonfirmasi <%= asFmt(sd.diterima_at, true) %><% } %>
+                            <% if (st2 === 'ditolak') { %> &middot; ditolak <%= asFmt(sd.ditolak_at, true) %><% } %>
+                        </p>
+                    </div>
+                    <div class="shp-head-side">
+                        <div class="shp-head-figure">
+                            <b><%= totalKirim.toLocaleString('id-ID') %></b>
+                            <span class="oct-card-sub">unit dikirim<% if (adaTerima) { %> &middot; <%= totalTerima.toLocaleString('id-ID') %> diterima<% } %></span>
+                        </div>
+                        <a class="btn btn-sm btn-outline-primary" href="/admin/shipments/<%= sd.id %>/resi" target="_blank" rel="noopener">
+                            <i class="fas fa-print mr-2"></i>Cetak resi
+                        </a>
+                        <form method="POST" action="/admin/shipments/<%= sd.id %>/delete" data-confirm-delete data-resi="<%= sd.kode_pengiriman || '' %>" style="display:inline;">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <button type="submit" class="oct-icon-btn oct-icon-btn-danger" title="Hapus pengiriman" aria-label="Hapus pengiriman <%= sd.kode_pengiriman || '' %>">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </header>
+
+                <div class="shp-route">
+                    <span class="shp-route-node">
+                        <span class="oct-avatar oct-avatar-sm"><i class="fas fa-warehouse" style="font-size:0.6875rem;"></i></span>
+                        <span class="oct-cell-stack">
+                            <span class="oct-cell-sub">Asal</span>
+                            <span class="oct-cell-main"><%= userLabel(sd.pengirim) %></span>
+                        </span>
+                    </span>
+                    <i class="fas fa-arrow-right-long shp-route-arrow"></i>
+                    <span class="shp-route-node">
+                        <span class="oct-avatar oct-avatar-sm"><i class="fas fa-store" style="font-size:0.6875rem;"></i></span>
+                        <span class="oct-cell-stack">
+                            <span class="oct-cell-sub">Tujuan</span>
+                            <span class="oct-cell-main"><%= userLabel(sd.penerima) %></span>
+                        </span>
+                    </span>
+                    <span class="oct-spacer"></span>
+                    <span class="oct-chip"><i class="fas fa-file-invoice"></i> PO <%= sd.po_number || '—' %></span>
+                    <span class="oct-chip"><i class="fas fa-hashtag"></i> SO <%= sd.so_number || '—' %></span>
+                    <% if (grandTotal > 0) { %><span class="oct-chip"><i class="fas fa-tag"></i> <%= rupiah(grandTotal) %></span><% } %>
+                </div>
+
+                <div class="oct-card-head oct-card-head-plain" style="padding-top:0.875rem;">
+                    <div>
+                        <h3 class="oct-card-title">Barang dalam pengiriman</h3>
+                        <p class="oct-card-sub">Qty terima diisi cabang saat mengonfirmasi surat jalan.</p>
+                    </div>
+                    <span class="oct-chip"><%= itemsD.length %> baris</span>
+                </div>
+
+                <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
+
+                <div class="oct-card-body" style="padding-top:0.75rem; padding-bottom:0.75rem;">
+                    <div class="oct-tablewrap oct-tablewrap-card">
+                        <table class="oct-table oct-table-sm oct-table-nested">
+                            <thead>
+                                <tr>
+                                    <th class="col-fit">#</th>
+                                    <th>Produk</th>
+                                    <th>Satuan</th>
+                                    <th>Barcode</th>
+                                    <th class="num">Harga</th>
+                                    <th class="num">Qty kirim</th>
+                                    <th class="num">Qty terima</th>
+                                    <th class="num">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% if (itemsD.length === 0) { %>
+                                    <tr><td colspan="8" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada rincian barang pada surat jalan ini.</td></tr>
+                                <% } %>
+                                <% for (var ii = 0; ii < itemsD.length; ii++) {
+                                    var it = itemsD[ii];
+                                    var p = productOf(it);
+                                    var qtyKirim = qtyKirimOf(it);
+                                    var qtyTerima = it.qty_diterima != null ? Number(it.qty_diterima) : null;
+                                    var sku = (p && p.sku) || it.sku || '—';
+                                    var nama = (p && p.nama_produk) || it.nama || it.nama_produk || '—';
+                                    var satuan = (p && p.satuan) || it.satuan || '—';
+                                    var barcode = (p && p.barcode) || it.barcode || '—';
+                                    var img = (p && p.gambar_url) || '';
+                                    var unitPrice = unitPriceOf(it);
+                                    var subtotal = qtyKirim * unitPrice;
+                                %>
+                                <tr>
+                                    <td class="col-fit oct-td-muted"><%= ii + 1 %></td>
+                                    <td>
+                                        <div class="oct-cell-media">
+                                            <% if (img) { %>
+                                                <img class="oct-thumb" src="<%= img %>" alt="Foto produk <%= nama %>" loading="lazy">
+                                            <% } else { %>
+                                                <span class="oct-thumb oct-thumb-empty"><i class="fas fa-image"></i></span>
+                                            <% } %>
+                                            <span class="oct-cell-stack">
+                                                <span class="oct-cell-main"><%= nama %></span>
+                                                <span class="oct-cell-sub oct-mono"><%= sku %></span>
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td class="oct-td-muted"><%= satuan %></td>
+                                    <td class="oct-td-muted oct-mono" style="font-size:0.75rem;"><%= barcode %></td>
+                                    <td class="num"><%= rupiah(unitPrice) %></td>
+                                    <td class="num oct-td-strong"><%= qtyKirim.toLocaleString('id-ID') %></td>
+                                    <td class="num">
+                                        <% if (st2 === 'diterima' && qtyTerima != null) { %>
+                                            <span class="oct-td-strong"><%= qtyTerima.toLocaleString('id-ID') %></span>
+                                            <% if (qtyTerima < qtyKirim) { %>
+                                                <span class="oct-pill oct-pill-pending ml-1">kurang</span>
+                                            <% } %>
+                                        <% } else { %>
+                                            <span class="oct-td-muted">—</span>
+                                        <% } %>
+                                    </td>
+                                    <td class="num oct-td-strong"><%= rupiah(subtotal) %></td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <td colspan="5" class="oct-td-muted">Grand total</td>
+                                    <td class="num"><%= totalKirim.toLocaleString('id-ID') %></td>
+                                    <td class="num"><%= (st2 === 'diterima' && adaTerima) ? totalTerima.toLocaleString('id-ID') : '—' %></td>
+                                    <td class="num" style="color:var(--oct-primary); font-size:0.9375rem;"><%= rupiah(grandTotal) %></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <% if (st2 === 'diterima' && buktiUrls.length) { %>
+                <div class="oct-card-body" style="padding-top:0;">
+                    <div class="oct-panel-inset">
+                        <div class="oct-dl-key">Bukti penerimaan cabang</div>
+                        <div class="shp-proofs mt-2">
+                            <% for (var b2 = 0; b2 < buktiUrls.length; b2++) { %>
+                                <a href="<%= buktiUrls[b2] %>" target="_blank" rel="noopener">
+                                    <img src="<%= buktiUrls[b2] %>" class="shp-proof" alt="Bukti penerimaan <%= b2 + 1 %> untuk resi <%= sd.kode_pengiriman || '' %>" loading="lazy">
+                                </a>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+                <% } %>
+
+                <% if (loc && loc.lat != null && loc.lng != null) { %>
+                <div class="oct-card-body" style="padding-top:0;">
+                    <div class="oct-panel-inset">
+                        <div class="oct-dl-key" style="margin-bottom:0.625rem;">
+                            <i class="fas fa-location-dot mr-1"></i>Lokasi <%= st2 === 'diterima' ? 'penerimaan' : 'penolakan' %> cabang
+                        </div>
+                        <div class="oct-dl">
+                            <div>
+                                <div class="oct-dl-key">Koordinat</div>
+                                <div class="oct-dl-val oct-mono" style="font-size:0.8125rem;"><%= loc.lat %>, <%= loc.lng %></div>
+                            </div>
+                            <div>
+                                <div class="oct-dl-key">Akurasi</div>
+                                <div class="oct-dl-val"><%= loc.accuracy != null ? ('±' + Number(loc.accuracy).toFixed(0) + ' m') : '—' %></div>
+                            </div>
+                            <div>
+                                <div class="oct-dl-key">Alamat</div>
+                                <div class="oct-dl-val"><%= loc.address || '—' %></div>
+                            </div>
+                        </div>
+                        <a class="oct-link mt-3" href="https://www.google.com/maps?q=<%= loc.lat %>,<%= loc.lng %>" target="_blank" rel="noopener">
+                            Buka di Google Maps <i class="fas fa-arrow-up-right-from-square"></i>
+                        </a>
+                    </div>
+                </div>
+                <% } %>
+
+                <div class="shp-actions">
+                    <% if (!canEdit) { %>
+                        <div class="alert alert-success mb-0">
+                            <strong>Pengiriman sudah diterima.</strong> Status dan keterangan tidak dapat diubah lagi.
+                        </div>
+                    <% } else { %>
+                        <form method="POST" action="/admin/shipments/<%= sd.id %>" data-confirm-status data-resi="<%= sd.kode_pengiriman || '' %>">
+                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                            <div class="shp-form-row">
+                                <div class="shp-form-status">
+                                    <label for="shpStatus<%= di %>">Status pengiriman</label>
+                                    <select name="status" id="shpStatus<%= di %>" class="form-control form-control-sm">
+                                        <option value="draft" <%= st2 === 'draft' ? 'selected' : '' %>>draft</option>
+                                        <option value="terkirim" <%= (st2 === 'terkirim' || st2 === 'dikirim') ? 'selected' : '' %>>terkirim</option>
+                                        <option value="diterima" <%= st2 === 'diterima' ? 'selected' : '' %>>diterima</option>
+                                        <option value="ditolak" <%= st2 === 'ditolak' ? 'selected' : '' %>>ditolak</option>
+                                    </select>
+                                </div>
+                                <div class="shp-form-note">
+                                    <label for="shpKet<%= di %>">Keterangan <span class="oct-label-hint">(opsional)</span></label>
+                                    <input type="text" name="keterangan" id="shpKet<%= di %>" class="form-control form-control-sm"
+                                           placeholder="Contoh: kiriman ditunda karena cuaca." value="<%= sd.keterangan || '' %>" maxlength="200">
+                                </div>
+                                <button type="submit" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-floppy-disk mr-2"></i>Simpan perubahan
+                                </button>
+                            </div>
+                        </form>
+                    <% } %>
+                </div>
+            </section>
+            <% } %>
         </div>
     </div>
 <% } %>
 
 <script>
     (function () {
-        var params = new URLSearchParams(window.location.search);
-        var ok = params.get('ok'), err = params.get('err');
-        function hasSwal() { return typeof Swal !== 'undefined' && Swal && Swal.fire; }
-        if (ok && hasSwal()) {
-            var title = ok === 'created' ? 'Pengiriman dibuat' : ok === 'updated' ? 'Perubahan disimpan' : ok === 'deleted' ? 'Pengiriman dihapus' : ok === 'confirmed' ? 'Konfirmasi tersimpan' : ok;
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: title, showConfirmButton: false, timer: 2200, timerProgressBar: true });
-            params.delete('ok'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : ''));
-        }
-        if (err && hasSwal()) { Swal.fire({ icon: 'error', title: 'Gagal', text: err, confirmButtonColor: '#3B82F6' }); params.delete('err'); window.history.replaceState({}, '', location.pathname + (params.toString() ? '?' + params.toString() : '')); }
+        /* ── Master/detail: rail selection + filters ───────────── */
+        var listEl = document.getElementById('shpList');
+        if (listEl) {
+            var items = Array.prototype.slice.call(listEl.querySelectorAll('.shp-item'));
+            var panels = Array.prototype.slice.call(document.querySelectorAll('.shp-detail'));
+            var filterSearch = document.getElementById('filterSearch');
+            var filterCabang = document.getElementById('filterCabang');
+            var filterResetBtn = document.getElementById('filterResetBtn');
+            var countEl = document.getElementById('shpRailCount');
+            var segEl = document.getElementById('shpSeg');
+            var emptyEl = document.getElementById('shpListEmpty');
+            var bucket = 'all';
 
+            function select(id) {
+                items.forEach(function (btn) {
+                    var on = btn.dataset.target === id;
+                    btn.classList.toggle('active', on);
+                    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                panels.forEach(function (p) { p.hidden = p.id !== id; });
+            }
+
+            items.forEach(function (btn) {
+                btn.addEventListener('click', function () { select(btn.dataset.target); });
+            });
+
+            function applyFilter() {
+                var q = filterSearch ? filterSearch.value.trim().toLowerCase() : '';
+                var cv = filterCabang ? filterCabang.value : 'all';
+                var shown = 0;
+                var firstVisible = null;
+
+                items.forEach(function (btn) {
+                    var okBucket = bucket === 'all' || btn.dataset.bucket === bucket;
+                    // A branch matches whether it sent or received the shipment
+                    var okCabang = (cv === 'all' || !cv) ||
+                        btn.dataset.pengirim === cv || btn.dataset.penerima === cv;
+                    var okSearch = !q || (btn.dataset.search || '').indexOf(q) !== -1;
+                    var hit = okBucket && okCabang && okSearch;
+
+                    btn.hidden = !hit;
+                    if (hit) { shown++; if (!firstVisible) firstVisible = btn; }
+                });
+
+                if (countEl) countEl.textContent = shown + ' pengiriman';
+                if (emptyEl) emptyEl.hidden = shown !== 0;
+
+                var active = items.filter(function (b) { return b.classList.contains('active') && !b.hidden; })[0];
+                if (!active && firstVisible) select(firstVisible.dataset.target);
+            }
+
+            if (filterSearch) filterSearch.addEventListener('input', applyFilter);
+            if (filterCabang) filterCabang.addEventListener('change', applyFilter);
+
+            if (filterResetBtn) {
+                filterResetBtn.addEventListener('click', function () {
+                    if (filterSearch) filterSearch.value = '';
+                    if (filterCabang) filterCabang.value = 'all';
+                    bucket = 'all';
+                    if (segEl) {
+                        segEl.querySelectorAll('.oct-seg-item').forEach(function (b) {
+                            var on = b.dataset.bucket === 'all';
+                            b.classList.toggle('active', on);
+                            b.setAttribute('aria-selected', on ? 'true' : 'false');
+                        });
+                    }
+                    applyFilter();
+                });
+            }
+
+            if (segEl) {
+                segEl.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.oct-seg-item');
+                    if (!btn) return;
+                    bucket = btn.dataset.bucket;
+                    segEl.querySelectorAll('.oct-seg-item').forEach(function (b) {
+                        var on = b === btn;
+                        b.classList.toggle('active', on);
+                        b.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                    applyFilter();
+                });
+            }
+
+            applyFilter();
+        }
+
+        /* ── Destructive / state-changing actions ──────────────── */
         document.addEventListener('submit', function (ev) {
             var form = ev.target;
-            if (!form.matches('form[data-confirm]') && !form.matches('form[data-confirm-status]')) return;
+            var isDelete = form.matches && form.matches('form[data-confirm-delete]');
+            var isStatus = form.matches && form.matches('form[data-confirm-status]');
+            if (!isDelete && !isStatus) return;
             if (form.dataset.confirmHandled === '1') return;
+
             ev.preventDefault();
-            var isDelete = form.matches('form[data-confirm]');
-            var msg = isDelete ? 'Yakin hapus item ini?' : 'Status akan diubah. Simpan perubahan?';
-            var title = isDelete ? 'Konfirmasi' : 'Ubah Status?';
-            Swal.fire({ icon: isDelete ? 'warning' : 'question', title: title, text: msg, showCancelButton: true, confirmButtonText: isDelete ? 'Hapus' : 'Simpan', cancelButtonText: 'Batal', confirmButtonColor: isDelete ? '#EF4444' : '#3B82F6' }).then(function(r) { if (r.isConfirmed) { form.dataset.confirmHandled = '1'; form.submit(); } });
+            var resi = form.dataset.resi || 'pengiriman ini';
+
+            var opts = isDelete
+                ? {
+                    icon: 'warning',
+                    title: 'Hapus pengiriman?',
+                    text: 'Surat jalan ' + resi + ' dihapus permanen dan stok pusat disesuaikan kembali.',
+                    confirmText: 'Ya, hapus'
+                }
+                : {
+                    icon: 'question',
+                    title: 'Simpan perubahan status?',
+                    text: 'Status surat jalan ' + resi + ' akan diperbarui.',
+                    confirmText: 'Ya, simpan'
+                };
+
+            Aqua.confirm(opts).then(function (r) {
+                if (!r.isConfirmed) return;
+                form.dataset.confirmHandled = '1';
+                form.submit();
+            });
         }, true);
 
-        var filterBtns = document.querySelectorAll('.filter-cabang');
-        var shipmentCards = document.querySelectorAll('.oct-card[data-pengirim]');
-        var filterSearch = document.getElementById('filterSearch');
-        var activeCabang = 'all';
-
-        function applyShipmentFilter() {
-            var q = (filterSearch.value || '').toLowerCase().trim();
-            shipmentCards.forEach(function(card) {
-                var matchCabang = (activeCabang === 'all' || card.getAttribute('data-pengirim') === activeCabang || card.getAttribute('data-penerima') === activeCabang);
-                var matchSearch = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
-                card.style.display = (matchCabang && matchSearch) ? '' : 'none';
-            });
-        }
-
-        filterBtns.forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                activeCabang = this.getAttribute('data-cabang');
-                filterBtns.forEach(function(b) { b.classList.remove('btn-primary'); b.classList.add('btn-outline-secondary'); });
-                this.classList.remove('btn-outline-secondary'); this.classList.add('btn-primary');
-                applyShipmentFilter();
-            });
+        /* ── Flash messages ────────────────────────────────────── */
+        Aqua.flash({
+            created: 'Pengiriman dibuat',
+            updated: 'Perubahan disimpan',
+            deleted: 'Pengiriman dihapus',
+            confirmed: 'Konfirmasi tersimpan'
         });
-
-        filterSearch.addEventListener('input', applyShipmentFilter);
     })();
 </script>

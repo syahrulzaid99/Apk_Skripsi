@@ -1,1037 +1,743 @@
+<%
+    /* ── Locals dari routes/dashboard.route.js ──────────────────────────────
+       title, user, profile, counts {total, admin, cabang},
+       branchStocks[] (khusus cabang), salesStats {pending, approved, rejected},
+       gudangStats {readyToPack, packed, sent}
+       Semua bisa kosong — setiap pembacaan di bawah ini dijaga. */
+
+    var prof = profile || null;
+    var role = (prof && prof.role) ? String(prof.role) : '';
+
+    var cnt = counts || {};
+    var sStat = salesStats || {};
+    var gStat = gudangStats || {};
+    var stocks = Array.isArray(branchStocks) ? branchStocks : [];
+
+    function num(v) { return Number(v || 0); }
+    function fmtNum(v) { return num(v).toLocaleString('id-ID'); }
+    function rupiah(v) { return 'Rp ' + num(v).toLocaleString('id-ID'); }
+    function share(part, whole) { return whole > 0 ? Math.round(part / whole * 100) : 0; }
+
+    // Keliling lingkaran ring: 2 · π · r, dengan r = 40
+    var RING_C = 251.33;
+
+    // ── Angka per peran ────────────────────────────────────────────────────
+    var totalUsers = num(cnt.total);
+    var adminCount = num(cnt.admin);
+    var cabangCount = num(cnt.cabang);
+    // counts.sales / counts.gudang belum disediakan route — turunkan dari sisa
+    var opsCount = (cnt.sales != null || cnt.gudang != null)
+        ? (num(cnt.sales) + num(cnt.gudang))
+        : Math.max(0, totalUsers - adminCount - cabangCount);
+
+    var sPending = num(sStat.pending);
+    var sProses = num(sStat.approved);
+    var sSelesai = num(sStat.rejected); // route memakai field ini untuk pesanan selesai
+    var sTotal = sPending + sProses + sSelesai;
+
+    var gReady = num(gStat.readyToPack);
+    var gPacked = num(gStat.packed);
+    var gSent = num(gStat.sent);
+    var gTotal = gReady + gPacked + gSent;
+
+    // Rekap stok toko (peran cabang)
+    var stokUnit = 0, stokNilai = 0, nKritis = 0, nMenipis = 0, nAman = 0;
+    for (var i = 0; i < stocks.length; i++) {
+        var q = num(stocks[i].stok_tersedia);
+        stokUnit += q;
+        stokNilai += q * num(stocks[i].harga_jual);
+        if (q <= 5) nKritis++;
+        else if (q <= 20) nMenipis++;
+        else nAman++;
+    }
+
+    var stokBuckets = [
+        { key: 'all', label: 'Semua', n: stocks.length },
+        { key: 'aman', label: 'Aman', n: nAman },
+        { key: 'menipis', label: 'Menipis', n: nMenipis },
+        { key: 'kritis', label: 'Kritis', n: nKritis }
+    ];
+
+    // ── Judul halaman ──────────────────────────────────────────────────────
+    var pageTitle = 'Dashboard';
+    var pageSub = 'Ringkasan aktivitas akun Anda.';
+    if (role === 'admin') {
+        pageTitle = 'Ringkasan platform';
+        pageSub = 'Pengguna, cabang, dan jalur distribusi dalam satu tampilan.';
+    } else if (role === 'cabang') {
+        pageTitle = 'Stok toko';
+        pageSub = 'Ketersediaan produk di toko Anda beserta barang yang perlu dipesan ulang.';
+    } else if (role === 'sales') {
+        pageTitle = 'Pipeline pesanan';
+        pageSub = 'Status pesanan yang sedang berjalan dan yang sudah selesai.';
+    } else if (role === 'gudang') {
+        pageTitle = 'Antrean gudang';
+        pageSub = 'Pesanan yang perlu dikemas dan pengiriman yang sedang berjalan.';
+    }
+
+    // ── Tombol utama di kepala halaman ─────────────────────────────────────
+    var headActions = [];
+    if (role === 'admin') {
+        headActions = [
+            { href: '/admin/orders', icon: 'fa-receipt', label: 'Pesanan cabang', primary: true },
+            { href: '/admin/laporan', icon: 'fa-chart-simple', label: 'Laporan', primary: false }
+        ];
+    } else if (role === 'cabang') {
+        headActions = [
+            { href: '/cabang/shipments', icon: 'fa-truck-fast', label: 'Pengiriman masuk', primary: true },
+            { href: '/cabang/orders', icon: 'fa-receipt', label: 'Pesanan saya', primary: false }
+        ];
+    } else if (role === 'sales') {
+        headActions = [
+            { href: '/sales/orders', icon: 'fa-cart-plus', label: 'Buat pesanan', primary: true },
+            { href: '/sales/report', icon: 'fa-chart-simple', label: 'Laporan penjualan', primary: false }
+        ];
+    } else if (role === 'gudang') {
+        headActions = [
+            { href: '/gudang/orders', icon: 'fa-boxes-stacked', label: 'Lihat pengemasan', primary: true },
+            { href: '/admin/shipments', icon: 'fa-truck-fast', label: 'Pengiriman', primary: false }
+        ];
+    }
+
+    // ── Ring komposisi + pintasan ──────────────────────────────────────────
+    var rings = [], distTitle = '', distSub = '', distTotal = 0, distEmpty = '';
+    var shortcuts = [];
+
+    if (role === 'admin') {
+        distTitle = 'Distribusi pengguna';
+        distSub = 'Porsi tiap peran terhadap seluruh akun terdaftar.';
+        distTotal = totalUsers;
+        distEmpty = 'Belum ada akun yang terdaftar pada sistem.';
+        rings = [
+            { label: 'Admin', sub: fmtNum(adminCount) + ' pengguna', pct: share(adminCount, totalUsers), tone: 1 },
+            { label: 'Cabang', sub: fmtNum(cabangCount) + ' pengguna', pct: share(cabangCount, totalUsers), tone: 2 },
+            { label: 'Sales & gudang', sub: fmtNum(opsCount) + ' pengguna', pct: share(opsCount, totalUsers), tone: 3 }
+        ];
+        shortcuts = [
+            { href: '/admin/orders', icon: 'fa-receipt', title: 'Pesanan cabang', sub: 'Tinjau dan setujui pesanan masuk' },
+            { href: '/admin/shipments', icon: 'fa-truck-fast', title: 'Pengiriman', sub: 'Pantau surat jalan yang berjalan' },
+            { href: '/admin/products', icon: 'fa-box', title: 'Produk', sub: 'Katalog dan stok pusat' },
+            { href: '/admin/cabang', icon: 'fa-store', title: 'Stok cabang', sub: 'Persediaan tiap toko' },
+            { href: '/admin/users', icon: 'fa-users', title: 'Pengguna', sub: 'Tambah atau ubah akun' }
+        ];
+    } else if (role === 'sales') {
+        distTitle = 'Komposisi pesanan';
+        distSub = 'Sebaran pesanan berdasarkan tahap penanganannya.';
+        distTotal = sTotal;
+        distEmpty = 'Belum ada pesanan yang tercatat.';
+        rings = [
+            { label: 'Menunggu', sub: fmtNum(sPending) + ' pesanan', pct: share(sPending, sTotal), tone: 3 },
+            { label: 'Diproses', sub: fmtNum(sProses) + ' pesanan', pct: share(sProses, sTotal), tone: 1 },
+            { label: 'Selesai', sub: fmtNum(sSelesai) + ' pesanan', pct: share(sSelesai, sTotal), tone: 2 }
+        ];
+        shortcuts = [
+            { href: '/sales/orders', icon: 'fa-cart-plus', title: 'Buat pesanan', sub: 'Ajukan pesanan baru ke pusat' },
+            { href: '/sales/report', icon: 'fa-chart-simple', title: 'Laporan penjualan', sub: 'Rekap penjualan Anda' }
+        ];
+    } else if (role === 'gudang') {
+        distTitle = 'Progres pengemasan';
+        distSub = 'Sebaran pesanan dari antrean kemas sampai berangkat.';
+        distTotal = gTotal;
+        distEmpty = 'Belum ada pesanan yang masuk ke gudang.';
+        rings = [
+            { label: 'Siap dikemas', sub: fmtNum(gReady) + ' pesanan', pct: share(gReady, gTotal), tone: 1 },
+            { label: 'Dikemas', sub: fmtNum(gPacked) + ' pesanan', pct: share(gPacked, gTotal), tone: 3 },
+            { label: 'Dikirim', sub: fmtNum(gSent) + ' pesanan', pct: share(gSent, gTotal), tone: 2 }
+        ];
+        shortcuts = [
+            { href: '/gudang/orders', icon: 'fa-boxes-stacked', title: 'Pengemasan', sub: 'Pesanan yang menunggu dikemas' },
+            { href: '/admin/shipments', icon: 'fa-truck-fast', title: 'Pengiriman', sub: 'Surat jalan yang sudah berangkat' }
+        ];
+    }
+
+    var hasRings = rings.length > 0;
+%>
+
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-
-    /* ============================================
-       OCTAVIA DESIGN SYSTEM
-       Light, friendly, structured — blue primary
-       with pastel accents & progress ring signature
-       ============================================ */
-
-    :root {
-        /* Primary palette */
-        --oct-primary: #3B82F6;
-        --oct-primary-dark: #2563EB;
-        --oct-primary-light: #93C5FD;
-        --oct-primary-bg: #EFF6FF;
-
-        /* Accents */
-        --oct-accent-green: #4ADE80;
-        --oct-accent-green-dark: #16A34A;
-        --oct-accent-yellow: #FBBF24;
-        --oct-accent-yellow-dark: #D97706;
-        --oct-accent-pink: #F472B6;
-        --oct-accent-pink-dark: #DB2777;
-        --oct-accent-indigo: #6366F1;
-
-        /* Surfaces */
-        --oct-bg: #F5F7FA;
-        --oct-card: #FFFFFF;
-        --oct-card-hover: #FAFBFC;
-
-        /* Text */
-        --oct-text: #1E293B;
-        --oct-text-2: #64748B;
-        --oct-text-muted: #94A3B8;
-
-        /* Borders & shadows */
-        --oct-border: #E2E8F0;
-        --oct-border-light: #F1F5F9;
-        --oct-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.06);
-        --oct-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.12);
-        --oct-shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.1);
-    }
-
-    .theme-dark {
-        --oct-bg: #0F172A;
-        --oct-card: #1E293B;
-        --oct-card-hover: #253349;
-        --oct-text: #F1F5F9;
-        --oct-text-2: #CBD5E1;
-        --oct-text-muted: #64748B;
-        --oct-border: #334155;
-        --oct-border-light: #1E293B;
-        --oct-primary-bg: rgba(59, 130, 246, 0.1);
-        --oct-shadow-sm: 0 2px 12px rgba(0, 0, 0, 0.2);
-        --oct-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.3);
-        --oct-shadow-lift: 0 12px 32px rgba(0, 0, 0, 0.35);
-    }
-
-    /* ── Dashboard Shell ── */
-    .oct-dashboard {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        background: var(--oct-bg);
-        color: var(--oct-text);
-        padding: 2rem 0 3rem;
-        min-height: calc(100vh - 200px);
-    }
-
-    /* ── Hero Section ── */
-    .oct-hero {
-        margin-bottom: 2rem;
-    }
-
-    .oct-hero-emoji {
-        font-size: 2.5rem;
-        display: block;
-        margin-bottom: 0.75rem;
-        animation: oct-wave 2s ease-in-out infinite;
-        animation-play-state: paused;
-    }
-
-    .oct-hero:hover .oct-hero-emoji {
-        animation-play-state: running;
-    }
-
-    @keyframes oct-wave {
-        0%, 100% { transform: rotate(0deg); }
-        15% { transform: rotate(14deg); }
-        30% { transform: rotate(-8deg); }
-        45% { transform: rotate(14deg); }
-        60% { transform: rotate(-4deg); }
-        75% { transform: rotate(10deg); }
-    }
-
-    .oct-hero-title {
-        font-family: 'Poppins', sans-serif;
-        font-size: clamp(1.75rem, 4vw, 2.25rem);
-        font-weight: 700;
-        line-height: 1.2;
-        color: var(--oct-text);
-        margin: 0 0 0.5rem;
-        letter-spacing: -0.01em;
-    }
-
-    .oct-hero-subtitle {
-        font-size: 0.9375rem;
-        color: var(--oct-text-2);
-        font-weight: 400;
-        max-width: 480px;
-        margin: 0;
-        line-height: 1.6;
-    }
-
-    .oct-hero-greeting {
-        display: inline-block;
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.8125rem;
-        font-weight: 600;
-        color: var(--oct-primary);
-        background: var(--oct-primary-bg);
-        padding: 0.375rem 0.875rem;
-        border-radius: 50rem;
-        margin-bottom: 1rem;
-        letter-spacing: 0.02em;
-    }
-
-    /* ── Stats Grid ── */
-    .oct-stats-row {
+    /* View-scoped saja — komponen bersama ada di layouts/base.ejs */
+    .dsh-rings {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 1.25rem 1rem;
+        align-items: start;
     }
 
-    /* ── Stat Card ── */
-    .oct-stat-card {
-        background: var(--oct-card);
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: var(--oct-shadow-sm);
-        border: 1px solid var(--oct-border-light);
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .oct-stat-card:hover {
-        transform: translateY(-3px);
-        box-shadow: var(--oct-shadow-lift);
-    }
-
-    .oct-stat-card::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 80px;
-        height: 80px;
-        border-radius: 0 16px 0 80px;
-        opacity: 0.08;
-        transition: opacity 0.25s ease;
-    }
-
-    .oct-stat-card:hover::after {
-        opacity: 0.14;
-    }
-
-    .oct-stat-card--blue::after { background: var(--oct-primary); }
-    .oct-stat-card--green::after { background: var(--oct-accent-green); }
-    .oct-stat-card--yellow::after { background: var(--oct-accent-yellow); }
-    .oct-stat-card--pink::after { background: var(--oct-accent-pink); }
-    .oct-stat-card--indigo::after { background: var(--oct-accent-indigo); }
-
-    .oct-stat-icon {
-        width: 44px;
-        height: 44px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.15rem;
-        margin-bottom: 1rem;
-        color: #fff;
-    }
-
-    .oct-stat-icon--blue { background: linear-gradient(135deg, #3B82F6, #60A5FA); }
-    .oct-stat-icon--green { background: linear-gradient(135deg, #4ADE80, #22C55E); }
-    .oct-stat-icon--yellow { background: linear-gradient(135deg, #FBBF24, #F59E0B); }
-    .oct-stat-icon--pink { background: linear-gradient(135deg, #F472B6, #EC4899); }
-    .oct-stat-icon--indigo { background: linear-gradient(135deg, #6366F1, #818CF8); }
-
-    .oct-stat-label {
-        font-size: 0.75rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--oct-text-muted);
-        margin-bottom: 0.375rem;
-    }
-
-    .oct-stat-value {
-        font-family: 'Poppins', sans-serif;
-        font-size: clamp(1.5rem, 3vw, 2rem);
-        font-weight: 700;
-        color: var(--oct-text);
-        line-height: 1;
-        letter-spacing: -0.02em;
-    }
-
-    /* ── Progress Rings Section ── */
-    .oct-rings-card {
-        background: var(--oct-card);
-        border-radius: 16px;
-        padding: 1.75rem;
-        box-shadow: var(--oct-shadow-sm);
-        border: 1px solid var(--oct-border-light);
-        margin-bottom: 1.5rem;
-    }
-
-    .oct-rings-title {
-        font-family: 'Poppins', sans-serif;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--oct-text);
-        margin: 0 0 1.25rem;
-    }
-
-    .oct-rings-grid {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 1.5rem;
-    }
-
-    .oct-ring-item {
+    .dsh-ring-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.625rem;
+        gap: 0.5rem;
+        min-width: 0;
     }
 
-    .oct-ring-svg {
-        width: 90px;
-        height: 90px;
+    .dsh-ring-svg {
+        width: 92px;
+        height: 92px;
         transform: rotate(-90deg);
     }
 
-    .oct-ring-bg {
+    .dsh-ring-bg {
         fill: none;
-        stroke: var(--oct-border);
+        stroke: var(--oct-inset-2);
         stroke-width: 8;
     }
 
-    .oct-ring-fill {
+    .dsh-ring-fill {
         fill: none;
         stroke-width: 8;
         stroke-linecap: round;
-        transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+        stroke: var(--oct-series-1);
+        transition: stroke-dashoffset 1.1s cubic-bezier(0.32, 0.72, 0, 1);
     }
 
-    .oct-ring-pct {
-        font-family: 'Poppins', sans-serif;
-        font-size: 0.875rem;
-        font-weight: 700;
+    .dsh-ring-1 { stroke: var(--oct-series-1); }
+    .dsh-ring-2 { stroke: var(--oct-series-2); }
+    .dsh-ring-3 { stroke: var(--oct-series-3); }
+
+    .dsh-ring-pct {
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 0.9375rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
         fill: var(--oct-text);
         text-anchor: middle;
         dominant-baseline: central;
-        /* counter-rotate so text is upright */
+        /* lawan rotasi svg agar teks tetap tegak */
         transform: rotate(90deg);
         transform-origin: center;
     }
 
-    .oct-ring-label {
+    .dsh-ring-label {
         font-size: 0.8125rem;
         font-weight: 600;
         color: var(--oct-text);
         text-align: center;
     }
 
-    .oct-ring-sublabel {
-        font-size: 0.6875rem;
-        font-weight: 400;
-        color: var(--oct-text-muted);
-        text-align: center;
-    }
-
-    /* ── Action Buttons ── */
-    .oct-actions {
-        display: flex;
-        gap: 0.75rem;
-        flex-wrap: wrap;
-        margin-bottom: 1.5rem;
-    }
-
-    .oct-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.5rem;
-        border-radius: 10px;
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        font-size: 0.875rem;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        border: none;
-        cursor: pointer;
-    }
-
-    .oct-btn-primary {
-        background: var(--oct-primary);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-    }
-
-    .oct-btn-primary:hover {
-        background: var(--oct-primary-dark);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
-        color: #fff;
-        text-decoration: none;
-    }
-
-    .oct-btn-outline {
-        background: transparent;
-        color: var(--oct-text-2);
-        border: 1.5px solid var(--oct-border);
-    }
-
-    .oct-btn-outline:hover {
-        border-color: var(--oct-primary);
-        color: var(--oct-primary);
-        background: var(--oct-primary-bg);
-        text-decoration: none;
-    }
-
-    .oct-btn i {
-        font-size: 1rem;
-    }
-
-    /* ── Table Card ── */
-    .oct-table-card {
-        background: var(--oct-card);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: var(--oct-shadow-sm);
-        border: 1px solid var(--oct-border-light);
-        margin-bottom: 1.5rem;
-    }
-
-    .oct-table-title-bar {
-        padding: 1.25rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.625rem;
-        border-bottom: 1px solid var(--oct-border-light);
-    }
-
-    .oct-table-title-bar i {
-        color: var(--oct-primary);
-        font-size: 1.125rem;
-    }
-
-    .oct-table-title-bar h3 {
-        font-family: 'Poppins', sans-serif;
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: var(--oct-text);
-    }
-
-    .oct-table-wrap {
-        overflow-x: auto;
-    }
-
-    .oct-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-    }
-
-    .oct-table thead th {
-        background: var(--oct-bg);
-        color: var(--oct-text-muted);
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.6875rem;
-        letter-spacing: 0.06em;
-        padding: 0.875rem 1.25rem;
-        border-bottom: 1px solid var(--oct-border);
-        text-align: left;
-    }
-
-    .oct-table tbody tr {
-        transition: background 0.15s ease;
-    }
-
-    .oct-table tbody tr:hover {
-        background: var(--oct-card-hover);
-    }
-
-    .oct-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .oct-table td {
-        padding: 0.875rem 1.25rem;
-        border-bottom: 1px solid var(--oct-border-light);
-        color: var(--oct-text);
-        font-size: 0.875rem;
-    }
-
-    .oct-table td strong {
-        font-weight: 600;
-        color: var(--oct-text);
-    }
-
-    .oct-sku {
-        display: inline-block;
-        background: var(--oct-bg);
-        padding: 0.25rem 0.5rem;
-        border-radius: 6px;
-        font-weight: 600;
+    .dsh-ring-sub {
         font-size: 0.75rem;
-        color: var(--oct-text-2);
-        font-family: 'JetBrains Mono', 'Fira Code', monospace;
-        letter-spacing: 0.02em;
-    }
-
-    .oct-stock-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.375rem;
-        padding: 0.3rem 0.75rem;
-        border-radius: 50rem;
-        font-weight: 600;
-        font-size: 0.8125rem;
-    }
-
-    .oct-stock-pill--ok {
-        background: rgba(74, 222, 128, 0.12);
-        color: var(--oct-accent-green-dark);
-    }
-
-    .oct-stock-pill--low {
-        background: rgba(251, 191, 36, 0.12);
-        color: var(--oct-accent-yellow-dark);
-    }
-
-    .oct-stock-pill--critical {
-        background: rgba(244, 114, 182, 0.12);
-        color: var(--oct-accent-pink-dark);
-    }
-
-    .oct-empty {
+        color: var(--oct-text-muted);
         text-align: center;
-        padding: 2.5rem 1.5rem;
-        color: var(--oct-text-muted);
+        font-variant-numeric: tabular-nums;
     }
 
-    .oct-empty i {
-        font-size: 2rem;
-        margin-bottom: 0.75rem;
-        opacity: 0.35;
-        display: block;
-    }
+    .dsh-shortcut-icon { font-size: 0.75rem; }
 
-    .oct-empty span {
-        font-size: 0.875rem;
-    }
-
-    /* ── Profile Card ── */
-    .oct-profile-card {
-        background: var(--oct-card);
-        border-radius: 16px;
-        padding: 1.75rem;
-        box-shadow: var(--oct-shadow-sm);
-        border: 1px solid var(--oct-border-light);
-    }
-
-    .oct-profile-header {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1.5rem;
-        padding-bottom: 1.25rem;
-        border-bottom: 1px solid var(--oct-border-light);
-    }
-
-    .oct-profile-avatar {
-        width: 44px;
-        height: 44px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, var(--oct-primary), var(--oct-accent-indigo));
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 700;
-        font-size: 1.125rem;
-        flex-shrink: 0;
-    }
-
-    .oct-profile-name {
-        font-family: 'Poppins', sans-serif;
-        font-size: 1.0625rem;
-        font-weight: 600;
-        color: var(--oct-text);
-        margin: 0;
-    }
-
-    .oct-profile-role {
-        font-size: 0.8125rem;
-        color: var(--oct-text-muted);
-        text-transform: capitalize;
-    }
-
-    .oct-profile-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 0.875rem;
-    }
-
-    .oct-profile-field {
-        padding: 0.875rem 1rem;
-        background: var(--oct-bg);
-        border-radius: 12px;
-        border: 1px solid var(--oct-border-light);
-        transition: border-color 0.2s ease;
-    }
-
-    .oct-profile-field:hover {
-        border-color: var(--oct-primary-light);
-    }
-
-    .oct-profile-field.full-width {
-        grid-column: 1 / -1;
-    }
-
-    .oct-field-label {
-        font-size: 0.6875rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: var(--oct-primary);
-        margin-bottom: 0.25rem;
-    }
-
-    .oct-field-value {
-        font-size: 0.9375rem;
-        font-weight: 500;
-        color: var(--oct-text);
-    }
-
-    /* ── Entrance Animation ── */
-    .oct-fade-up {
-        opacity: 0;
-        transform: translateY(16px);
-    }
-
-    .oct-fade-up.oct-visible {
-        opacity: 1;
-        transform: translateY(0);
-        transition: opacity 0.5s cubic-bezier(0, 0, 0.2, 1),
-                    transform 0.5s cubic-bezier(0, 0, 0.2, 1);
-    }
-
-    /* ── Responsive ── */
     @media (max-width: 767px) {
-        .oct-stats-row {
-            grid-template-columns: 1fr;
-        }
-
-        .oct-hero-title {
-            font-size: 1.5rem;
-        }
-
-        .oct-profile-grid {
-            grid-template-columns: 1fr;
-        }
-
-        .oct-actions {
-            flex-direction: column;
-        }
-
-        .oct-btn {
-            width: 100%;
-            justify-content: center;
-        }
-
-        .oct-rings-grid {
-            gap: 1rem;
-        }
-
-        .oct-ring-svg {
-            width: 72px;
-            height: 72px;
-        }
+        .dsh-ring-svg { width: 78px; height: 78px; }
     }
 
-    @media (min-width: 768px) and (max-width: 991px) {
-        .oct-stats-row {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    /* ── Reduced Motion ── */
     @media (prefers-reduced-motion: reduce) {
-        .oct-hero-emoji { animation: none; }
-        .oct-stat-card,
-        .oct-btn,
-        .oct-profile-field { transition: none; }
-        .oct-fade-up { opacity: 1; transform: none; }
-        .oct-ring-fill { transition: none; }
+        .dsh-ring-fill { transition: none; }
     }
 </style>
 
-<div class="oct-dashboard">
-    <!-- Hero -->
-    <div class="oct-hero oct-fade-up">
-        <% if (profile) { %>
-            <span class="oct-hero-greeting">
-                <i class="fas fa-hand-sparkles" style="margin-right: 0.375rem; font-size: 0.75rem;"></i>
-                Halo, <%= profile.username %>!
-            </span>
+<div class="oct-page-head">
+    <div>
+        <h1 class="oct-page-title"><%= pageTitle %></h1>
+        <p class="oct-page-sub"><%= pageSub %></p>
+    </div>
+    <div class="oct-page-actions">
+        <% if (prof && prof.username) { %>
+            <span class="oct-chip"><i class="fas fa-circle-user"></i> <%= prof.username %></span>
         <% } %>
-        <span class="oct-hero-emoji" aria-hidden="true">
-            <% if (profile && profile.role === 'admin') { %>&#128202;<% } else if (profile && profile.role === 'cabang') { %>&#127978;<% } else if (profile && profile.role === 'sales') { %>&#128722;<% } else if (profile && profile.role === 'gudang') { %>&#128230;<% } else { %>&#128075;<% } %>
-        </span>
-        <h1 class="oct-hero-title">
-            <% if (profile && profile.role === 'admin') { %>
-                Kelola Semua dari Satu Tempat
-            <% } else if (profile && profile.role === 'cabang') { %>
-                Stok Toko Kamu Hari Ini
-            <% } else if (profile && profile.role === 'sales') { %>
-                Siap Ambil Pesanan Baru?
-            <% } else if (profile && profile.role === 'gudang') { %>
-                Kirim Barang Hari Ini
-            <% } else { %>
-                Dashboard Kamu
-            <% } %>
-        </h1>
-        <p class="oct-hero-subtitle">
-            <% if (profile && profile.role === 'admin') { %>
-                Pantau pengguna, cabang, dan performa bisnis secara menyeluruh.
-            <% } else if (profile && profile.role === 'cabang') { %>
-                Lihat ketersediaan stok produk di toko kamu secara real-time.
-            <% } else if (profile && profile.role === 'sales') { %>
-                Lacak status pesanan dan buat pesanan baru dengan mudah.
-            <% } else if (profile && profile.role === 'gudang') { %>
-                Kelola pengemasan dan pengiriman pesanan dengan efisien.
-            <% } else { %>
-                Pantau aktivitas dan performa kamu dari sini.
-            <% } %>
-        </p>
-    </div>
-
-    <% if (profile && profile.role === 'admin') { %>
-    <%
-        var totalUsers = (counts && counts.total) || 0;
-        var adminCount = (counts && counts.admin) || 0;
-        var cabangCount = (counts && counts.cabang) || 0;
-        var salesCount = (counts && counts.sales) || 0;
-        var gudangCount = (counts && counts.gudang) || 0;
-        var adminPct = totalUsers > 0 ? Math.round(adminCount / totalUsers * 100) : 0;
-        var cabangPct = totalUsers > 0 ? Math.round(cabangCount / totalUsers * 100) : 0;
-        var salesPct = totalUsers > 0 ? Math.round((salesCount + gudangCount) / totalUsers * 100) : 0;
-    %>
-    <!-- Admin Stats -->
-    <div class="oct-stats-row">
-        <div class="oct-stat-card oct-stat-card--blue oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--blue">
-                <i class="fas fa-users"></i>
-            </div>
-            <div class="oct-stat-label">Total Pengguna</div>
-            <div class="oct-stat-value"><%= totalUsers %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--indigo oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--indigo">
-                <i class="fas fa-user-shield"></i>
-            </div>
-            <div class="oct-stat-label">Admin</div>
-            <div class="oct-stat-value"><%= adminCount %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--green oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--green">
-                <i class="fas fa-store-alt"></i>
-            </div>
-            <div class="oct-stat-label">Cabang</div>
-            <div class="oct-stat-value"><%= cabangCount %></div>
-        </div>
-    </div>
-
-    <!-- Admin Progress Rings -->
-    <div class="oct-rings-card oct-fade-up">
-        <h3 class="oct-rings-title">Distribusi Pengguna</h3>
-        <div class="oct-rings-grid">
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#6366F1"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - adminPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= adminPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Admin</div>
-                <div class="oct-ring-sublabel"><%= adminCount %> pengguna</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#3B82F6"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - cabangPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= cabangPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Cabang</div>
-                <div class="oct-ring-sublabel"><%= cabangCount %> pengguna</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#4ADE80"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - salesPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= salesPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Sales & Gudang</div>
-                <div class="oct-ring-sublabel"><%= (salesCount + gudangCount) %> pengguna</div>
-            </div>
-        </div>
-    </div>
-    <% } else if (profile && profile.role === 'cabang') { %>
-    <!-- Cabang Stock Table -->
-    <div class="oct-table-card oct-fade-up">
-        <div class="oct-table-title-bar">
-            <i class="fas fa-boxes-stacked"></i>
-            <h3>Stok Tersedia di Toko</h3>
-        </div>
-        <div class="oct-table-wrap">
-            <table class="oct-table">
-                <thead>
-                    <tr>
-                        <th>Nama Produk</th>
-                        <th>SKU</th>
-                        <th>Stok</th>
-                        <th>Satuan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (branchStocks && branchStocks.length > 0) { %>
-                        <% branchStocks.forEach(item => { %>
-                            <tr>
-                                <td><strong><%= item.nama_produk %></strong></td>
-                                <td><span class="oct-sku"><%= item.sku %></span></td>
-                                <td>
-                                    <span class="oct-stock-pill <%= item.stok_tersedia <= 5 ? 'oct-stock-pill--critical' : item.stok_tersedia <= 20 ? 'oct-stock-pill--low' : 'oct-stock-pill--ok' %>">
-                                        <i class="fas fa-cube" style="font-size: 0.65rem;"></i>
-                                        <%= item.stok_tersedia %>
-                                    </span>
-                                </td>
-                                <td><%= item.satuan %></td>
-                            </tr>
-                        <% }) %>
-                    <% } else { %>
-                        <tr>
-                            <td colspan="4" class="oct-empty">
-                                <i class="fas fa-box-open"></i>
-                                <span>Belum ada data stok tersedia</span>
-                            </td>
-                        </tr>
-                    <% } %>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <% } else if (profile && profile.role === 'sales') { %>
-    <%
-        var pending = (salesStats && salesStats.pending) || 0;
-        var approved = (salesStats && salesStats.approved) || 0;
-        var done = (salesStats && salesStats.rejected) || 0;
-        var totalOrders = pending + approved + done;
-        var pendingPct = totalOrders > 0 ? Math.round(pending / totalOrders * 100) : 0;
-        var approvedPct = totalOrders > 0 ? Math.round(approved / totalOrders * 100) : 0;
-        var donePct = totalOrders > 0 ? Math.round(done / totalOrders * 100) : 0;
-    %>
-    <!-- Sales Stats -->
-    <div class="oct-stats-row">
-        <div class="oct-stat-card oct-stat-card--yellow oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--yellow">
-                <i class="fas fa-clock"></i>
-            </div>
-            <div class="oct-stat-label">Pending</div>
-            <div class="oct-stat-value"><%= pending %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--blue oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--blue">
-                <i class="fas fa-sync"></i>
-            </div>
-            <div class="oct-stat-label">Dalam Proses</div>
-            <div class="oct-stat-value"><%= approved %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--green oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--green">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="oct-stat-label">Selesai</div>
-            <div class="oct-stat-value"><%= done %></div>
-        </div>
-    </div>
-
-    <!-- Sales Progress Rings -->
-    <div class="oct-rings-card oct-fade-up">
-        <h3 class="oct-rings-title">Pipeline Pesanan</h3>
-        <div class="oct-rings-grid">
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#FBBF24"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - pendingPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= pendingPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Pending</div>
-                <div class="oct-ring-sublabel">Menunggu konfirmasi</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#3B82F6"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - approvedPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= approvedPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Proses</div>
-                <div class="oct-ring-sublabel">Sedang diproses</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#4ADE80"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - donePct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= donePct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Selesai</div>
-                <div class="oct-ring-sublabel">Pesanan selesai</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="oct-actions oct-fade-up">
-        <a href="/sales/orders" class="oct-btn oct-btn-primary">
-            <i class="fas fa-shopping-cart"></i>
-            <span>Buat Pesanan</span>
-        </a>
-    </div>
-    <% } else if (profile && profile.role === 'gudang') { %>
-    <%
-        var ready = (gudangStats && gudangStats.readyToPack) || 0;
-        var packed = (gudangStats && gudangStats.packed) || 0;
-        var sent = (gudangStats && gudangStats.sent) || 0;
-        var totalGudang = ready + packed + sent;
-        var readyPct = totalGudang > 0 ? Math.round(ready / totalGudang * 100) : 0;
-        var packedPct = totalGudang > 0 ? Math.round(packed / totalGudang * 100) : 0;
-        var sentPct = totalGudang > 0 ? Math.round(sent / totalGudang * 100) : 0;
-    %>
-    <!-- Gudang Stats -->
-    <div class="oct-stats-row">
-        <div class="oct-stat-card oct-stat-card--blue oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--blue">
-                <i class="fas fa-boxes-stacked"></i>
-            </div>
-            <div class="oct-stat-label">Siap Dikemas</div>
-            <div class="oct-stat-value"><%= ready %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--yellow oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--yellow">
-                <i class="fas fa-box-open"></i>
-            </div>
-            <div class="oct-stat-label">Sedang Dikemas</div>
-            <div class="oct-stat-value"><%= packed %></div>
-        </div>
-        <div class="oct-stat-card oct-stat-card--green oct-fade-up">
-            <div class="oct-stat-icon oct-stat-icon--green">
-                <i class="fas fa-truck"></i>
-            </div>
-            <div class="oct-stat-label">Dalam Pengiriman</div>
-            <div class="oct-stat-value"><%= sent %></div>
-        </div>
-    </div>
-
-    <!-- Gudang Progress Rings -->
-    <div class="oct-rings-card oct-fade-up">
-        <h3 class="oct-rings-title">Progress Pengiriman</h3>
-        <div class="oct-rings-grid">
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#3B82F6"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - readyPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= readyPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Siap Dikemas</div>
-                <div class="oct-ring-sublabel">Menunggu dikemas</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#FBBF24"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - packedPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= packedPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Dikemas</div>
-                <div class="oct-ring-sublabel">Sedang dikemas</div>
-            </div>
-            <div class="oct-ring-item">
-                <svg class="oct-ring-svg" viewBox="0 0 100 100">
-                    <circle class="oct-ring-bg" cx="50" cy="50" r="40"/>
-                    <circle class="oct-ring-fill" cx="50" cy="50" r="40"
-                        stroke="#4ADE80"
-                        stroke-dasharray="251.33"
-                        stroke-dashoffset="251.33"
-                        data-target="<%= 251.33 * (1 - sentPct / 100) %>"/>
-                    <text class="oct-ring-pct" x="50" y="50"><%= sentPct %>%</text>
-                </svg>
-                <div class="oct-ring-label">Terkirim</div>
-                <div class="oct-ring-sublabel">Dalam pengiriman</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="oct-actions oct-fade-up">
-        <a href="/gudang/orders" class="oct-btn oct-btn-primary">
-            <i class="fas fa-boxes-stacked"></i>
-            <span>Lihat Pengemasan</span>
-        </a>
-        <a href="/admin/shipments" class="oct-btn oct-btn-outline">
-            <i class="fas fa-truck"></i>
-            <span>Pengiriman</span>
-        </a>
-    </div>
-    <% } %>
-
-    <!-- Profile Section -->
-    <div class="oct-profile-card oct-fade-up">
-        <div class="oct-profile-header">
-            <div class="oct-profile-avatar">
-                <% if (profile && profile.username) { %><%= profile.username.charAt(0).toUpperCase() %><% } else { %>?<% } %>
-            </div>
-            <div>
-                <h2 class="oct-profile-name"><%= profile ? profile.username : 'Pengguna' %></h2>
-                <div class="oct-profile-role"><%= profile ? profile.role : '' %></div>
-            </div>
-        </div>
-        <% if (profile) { %>
-            <div class="oct-profile-grid">
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">ID</div>
-                    <div class="oct-field-value"><%= profile.id %></div>
-                </div>
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">Username</div>
-                    <div class="oct-field-value"><%= profile.username %></div>
-                </div>
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">Role</div>
-                    <div class="oct-field-value" style="text-transform: capitalize;"><%= profile.role %></div>
-                </div>
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">Nama Cabang</div>
-                    <div class="oct-field-value"><%= profile.nama_cabang || '-' %></div>
-                </div>
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">Provinsi</div>
-                    <div class="oct-field-value"><%= profile.provinsi || '-' %></div>
-                </div>
-                <div class="oct-profile-field">
-                    <div class="oct-field-label">Kota</div>
-                    <div class="oct-field-value"><%= profile.kota || '-' %></div>
-                </div>
-                <div class="oct-profile-field full-width">
-                    <div class="oct-field-label">Jalan</div>
-                    <div class="oct-field-value"><%= profile.jalan || '-' %></div>
-                </div>
-            </div>
-        <% } else { %>
-            <div class="oct-empty">
-                <i class="fas fa-user-circle"></i>
-                <span>Profil tidak ditemukan.</span>
-            </div>
+        <% for (var ha = 0; ha < headActions.length; ha++) { var act = headActions[ha]; %>
+            <a href="<%= act.href %>" class="btn <%= act.primary ? 'btn-primary' : 'oct-btn-ghost' %>">
+                <i class="fas <%= act.icon %> mr-2"></i><%= act.label %>
+            </a>
         <% } %>
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Staggered fade-in
-        var items = document.querySelectorAll('.oct-fade-up');
-        items.forEach(function(el, i) {
-            setTimeout(function() {
-                el.classList.add('oct-visible');
-            }, 60 + i * 80);
-        });
+<% if (role === 'admin') { %>
+<!-- Ringkasan pengguna -->
+<div class="oct-panel mb-3">
+    <div class="oct-kpi-grid">
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-users"></i></span>
+                <span class="oct-kpi-label">Total pengguna</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(totalUsers) %></span>
+                <span class="oct-kpi-note">akun terdaftar</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-user-shield"></i></span>
+                <span class="oct-kpi-label">Admin</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(adminCount) %></span>
+                <span class="oct-kpi-note"><%= share(adminCount, totalUsers) %>% dari total</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-store"></i></span>
+                <span class="oct-kpi-label">Cabang</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(cabangCount) %></span>
+                <span class="oct-kpi-note"><%= share(cabangCount, totalUsers) %>% dari total</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-people-carry-box"></i></span>
+                <span class="oct-kpi-label">Sales &amp; gudang</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(opsCount) %></span>
+                <span class="oct-kpi-note">tim operasional</span>
+            </div>
+        </div>
+    </div>
+</div>
+<% } else if (role === 'sales') { %>
+<!-- Ringkasan pesanan -->
+<div class="oct-panel mb-3">
+    <div class="oct-kpi-grid">
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-receipt"></i></span>
+                <span class="oct-kpi-label">Total pesanan</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(sTotal) %></span>
+                <span class="oct-kpi-note">seluruh tahap</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-hourglass-half"></i></span>
+                <span class="oct-kpi-label">Menunggu</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(sPending) %></span>
+                <% if (sPending > 0) { %>
+                    <span class="oct-delta oct-delta-warn"><i class="fas fa-clock"></i> perlu ditindak</span>
+                <% } else { %>
+                    <span class="oct-kpi-note">tidak ada antrean</span>
+                <% } %>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-rotate"></i></span>
+                <span class="oct-kpi-label">Dalam proses</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(sProses) %></span>
+                <span class="oct-kpi-note">disetujui s/d dikirim</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-circle-check"></i></span>
+                <span class="oct-kpi-label">Selesai</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(sSelesai) %></span>
+                <span class="oct-kpi-note"><%= share(sSelesai, sTotal) %>% dari total</span>
+            </div>
+        </div>
+    </div>
+</div>
+<% } else if (role === 'gudang') { %>
+<!-- Ringkasan gudang -->
+<div class="oct-panel mb-3">
+    <div class="oct-kpi-grid">
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-boxes-stacked"></i></span>
+                <span class="oct-kpi-label">Siap dikemas</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(gReady) %></span>
+                <% if (gReady > 0) { %>
+                    <span class="oct-delta oct-delta-warn"><i class="fas fa-triangle-exclamation"></i> menunggu</span>
+                <% } else { %>
+                    <span class="oct-kpi-note">antrean kosong</span>
+                <% } %>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-box-open"></i></span>
+                <span class="oct-kpi-label">Sedang dikemas</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(gPacked) %></span>
+                <span class="oct-kpi-note">dalam pengerjaan</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-truck-fast"></i></span>
+                <span class="oct-kpi-label">Dalam pengiriman</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(gSent) %></span>
+                <span class="oct-kpi-note">sudah berangkat</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-list-check"></i></span>
+                <span class="oct-kpi-label">Total ditangani</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(gTotal) %></span>
+                <span class="oct-kpi-note">pesanan aktif</span>
+            </div>
+        </div>
+    </div>
+</div>
+<% } else if (role === 'cabang') { %>
+<!-- Ringkasan stok toko -->
+<div class="oct-panel mb-3">
+    <div class="oct-kpi-grid">
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-box"></i></span>
+                <span class="oct-kpi-label">Produk tersedia</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(stocks.length) %></span>
+                <span class="oct-kpi-note">jenis produk</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-cubes"></i></span>
+                <span class="oct-kpi-label">Total unit</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(stokUnit) %></span>
+                <span class="oct-kpi-note">di rak toko</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-triangle-exclamation"></i></span>
+                <span class="oct-kpi-label">Perlu dipesan ulang</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= fmtNum(nMenipis + nKritis) %></span>
+                <% if (nKritis > 0) { %>
+                    <span class="oct-delta oct-delta-down"><i class="fas fa-arrow-down"></i> <%= fmtNum(nKritis) %> kritis</span>
+                <% } else if (nMenipis > 0) { %>
+                    <span class="oct-delta oct-delta-warn"><i class="fas fa-clock"></i> menipis</span>
+                <% } else { %>
+                    <span class="oct-kpi-note">semua aman</span>
+                <% } %>
+            </div>
+            <div class="oct-kpi-foot">ambang menipis 20 unit, kritis 5 unit</div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-wallet"></i></span>
+                <span class="oct-kpi-label">Nilai persediaan</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value oct-kpi-value-sm"><%= rupiah(stokNilai) %></span>
+            </div>
+            <div class="oct-kpi-foot">berdasarkan harga jual produk</div>
+        </div>
+    </div>
+</div>
+<% } %>
 
-        // Animate progress rings
-        setTimeout(function() {
-            var rings = document.querySelectorAll('.oct-ring-fill');
-            rings.forEach(function(ring) {
+<% if (hasRings) { %>
+<!-- Komposisi + pintasan -->
+<div class="oct-grid oct-grid-main mb-3">
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title"><%= distTitle %></h2>
+                <p class="oct-card-sub"><%= distSub %></p>
+            </div>
+            <span class="oct-chip"><i class="fas fa-layer-group"></i> <%= fmtNum(distTotal) %> total</span>
+        </div>
+        <div class="oct-card-body">
+            <% if (distTotal === 0) { %>
+                <div class="oct-empty">
+                    <div class="oct-empty-icon"><i class="fas fa-chart-pie"></i></div>
+                    <h3 class="oct-empty-title">Belum ada data</h3>
+                    <p class="oct-empty-text"><%= distEmpty %></p>
+                </div>
+            <% } else { %>
+                <div class="dsh-rings">
+                    <% for (var ri = 0; ri < rings.length; ri++) { var r = rings[ri]; %>
+                        <div class="dsh-ring-item">
+                            <svg class="dsh-ring-svg" viewBox="0 0 100 100" role="img"
+                                 aria-label="<%= r.label %>: <%= r.pct %> persen, <%= r.sub %>">
+                                <circle class="dsh-ring-bg" cx="50" cy="50" r="40"></circle>
+                                <circle class="dsh-ring-fill dsh-ring-<%= r.tone %>" cx="50" cy="50" r="40"
+                                        stroke-dasharray="<%= RING_C %>"
+                                        stroke-dashoffset="<%= RING_C %>"
+                                        data-target="<%= RING_C * (1 - r.pct / 100) %>"></circle>
+                                <text class="dsh-ring-pct" x="50" y="50"><%= r.pct %>%</text>
+                            </svg>
+                            <div class="dsh-ring-label"><%= r.label %></div>
+                            <div class="dsh-ring-sub"><%= r.sub %></div>
+                        </div>
+                    <% } %>
+                </div>
+            <% } %>
+        </div>
+        <% if (distTotal > 0) { %>
+        <div class="oct-card-foot">
+            <span class="oct-card-sub mb-0">Persentase dibulatkan ke bilangan bulat terdekat.</span>
+        </div>
+        <% } %>
+    </section>
+
+    <section class="oct-card">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Pintasan</h2>
+                <p class="oct-card-sub">Halaman yang paling sering dibuka untuk peran Anda.</p>
+            </div>
+        </div>
+        <div class="oct-card-body">
+            <nav class="oct-listnav" aria-label="Pintasan halaman">
+                <% for (var ci = 0; ci < shortcuts.length; ci++) { var sc = shortcuts[ci]; %>
+                    <a class="oct-listnav-item" href="<%= sc.href %>">
+                        <span class="oct-avatar oct-avatar-sm"><i class="fas <%= sc.icon %> dsh-shortcut-icon"></i></span>
+                        <span class="oct-listnav-meta">
+                            <span class="oct-listnav-title"><%= sc.title %></span>
+                            <span class="oct-listnav-sub"><%= sc.sub %></span>
+                        </span>
+                        <i class="fas fa-chevron-right" style="font-size:0.6875rem; color:var(--oct-text-muted);"></i>
+                    </a>
+                <% } %>
+            </nav>
+        </div>
+    </section>
+</div>
+<% } %>
+
+<% if (role === 'cabang') { %>
+<!-- Stok tersedia di toko -->
+<% if (stocks.length === 0) { %>
+    <section class="oct-card mb-3">
+        <div class="oct-empty">
+            <div class="oct-empty-icon"><i class="fas fa-box-open"></i></div>
+            <h2 class="oct-empty-title">Belum ada stok di toko</h2>
+            <p class="oct-empty-text">Stok bertambah setiap kali Anda mengonfirmasi pengiriman dari pusat. Ajukan pesanan bila rak masih kosong.</p>
+            <div class="oct-empty-actions">
+                <a href="/cabang/orders" class="btn btn-primary"><i class="fas fa-plus mr-2"></i>Buat pesanan</a>
+            </div>
+        </div>
+    </section>
+<% } else { %>
+    <section class="oct-card mb-3">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Stok tersedia di toko</h2>
+                <p class="oct-card-sub"><%= fmtNum(stocks.length) %> produk &middot; <%= fmtNum(stokUnit) %> unit tercatat di cabang Anda.</p>
+            </div>
+            <div class="oct-row">
+                <div class="oct-search">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <label class="oct-sr" for="dshCariStok">Cari produk</label>
+                    <input type="text" id="dshCariStok" placeholder="Cari nama produk atau SKU…" autocomplete="off">
+                </div>
+                <div class="oct-seg" id="dshSegStok" role="tablist" aria-label="Saring berdasarkan tingkat stok">
+                    <% for (var bi = 0; bi < stokBuckets.length; bi++) { var b = stokBuckets[bi]; %>
+                        <button type="button" role="tab" class="oct-seg-item <%= bi === 0 ? 'active' : '' %>"
+                                data-bucket="<%= b.key %>" aria-selected="<%= bi === 0 %>">
+                            <%= b.label %><span class="oct-seg-count"><%= b.n %></span>
+                        </button>
+                    <% } %>
+                </div>
+            </div>
+        </div>
+
+        <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
+
+        <div class="oct-card-body">
+            <div class="oct-tablewrap oct-tablewrap-card">
+                <table class="oct-table" id="dshTabelStok">
+                    <thead>
+                        <tr>
+                            <th class="col-fit">#</th>
+                            <th>Produk</th>
+                            <th>Satuan</th>
+                            <th class="num">Stok</th>
+                            <th class="num">Nilai</th>
+                            <th class="col-fit">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% for (var si = 0; si < stocks.length; si++) {
+                            var it = stocks[si];
+                            var qty = num(it.stok_tersedia);
+                            var bucket = qty <= 5 ? 'kritis' : (qty <= 20 ? 'menipis' : 'aman');
+                            var pillCls = qty <= 5 ? 'oct-pill-gagal' : (qty <= 20 ? 'oct-pill-pending' : 'oct-pill-aktif');
+                            var pillTxt = qty <= 5 ? 'Kritis' : (qty <= 20 ? 'Menipis' : 'Aman');
+                            var nama = it.nama_produk || '—';
+                            var sku = it.sku || '—';
+                        %>
+                        <tr class="dsh-stok-row"
+                            data-bucket="<%= bucket %>"
+                            data-search="<%= (nama + ' ' + sku + ' ' + (it.barcode || '')).toLowerCase() %>">
+                            <td class="col-fit oct-td-muted"><%= si + 1 %></td>
+                            <td>
+                                <div class="oct-cell-media">
+                                    <% if (it.gambar_url) { %>
+                                        <img class="oct-thumb" src="<%= it.gambar_url %>" alt="Foto produk <%= nama %>" loading="lazy">
+                                    <% } else { %>
+                                        <span class="oct-thumb oct-thumb-empty"><i class="fas fa-image"></i></span>
+                                    <% } %>
+                                    <span class="oct-cell-stack">
+                                        <span class="oct-cell-main"><%= nama %></span>
+                                        <span class="oct-cell-sub oct-mono"><%= sku %></span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="oct-td-muted"><%= it.satuan || '—' %></td>
+                            <td class="num oct-td-strong"><%= fmtNum(qty) %></td>
+                            <td class="num"><%= it.harga_jual ? rupiah(qty * num(it.harga_jual)) : '—' %></td>
+                            <td class="col-fit"><span class="oct-pill oct-pill-dot <%= pillCls %>"><%= pillTxt %></span></td>
+                        </tr>
+                        <% } %>
+                        <tr id="dshStokKosong" hidden>
+                            <td colspan="6" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada produk yang cocok dengan filter.</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="oct-td-muted">Total</td>
+                            <td class="num"><%= fmtNum(stokUnit) %></td>
+                            <td class="num" style="color:var(--oct-primary);"><%= rupiah(stokNilai) %></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+<% } %>
+<% } %>
+
+<!-- Profil akun -->
+<section class="oct-card">
+    <div class="oct-card-head">
+        <div class="oct-row">
+            <span class="oct-avatar oct-avatar-lg oct-avatar-solid">
+                <%= (prof && prof.username) ? prof.username.charAt(0).toUpperCase() : '?' %>
+            </span>
+            <div>
+                <h2 class="oct-card-title" style="font-size:1.0625rem;"><%= (prof && prof.username) || 'Pengguna' %></h2>
+                <p class="oct-card-sub">Detail akun yang sedang masuk</p>
+            </div>
+        </div>
+        <% if (prof && prof.role) { %>
+            <span class="oct-pill" style="text-transform:capitalize;"><%= prof.role %></span>
+        <% } %>
+    </div>
+    <div class="oct-card-body">
+        <% if (prof) { %>
+            <div class="oct-dl">
+                <div>
+                    <div class="oct-dl-key">ID pengguna</div>
+                    <div class="oct-dl-val oct-mono" style="font-size:0.75rem;"><%= prof.id || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Username</div>
+                    <div class="oct-dl-val"><%= prof.username || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Peran</div>
+                    <div class="oct-dl-val" style="text-transform:capitalize;"><%= prof.role || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Nama cabang</div>
+                    <div class="oct-dl-val"><%= prof.nama_cabang || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Provinsi</div>
+                    <div class="oct-dl-val"><%= prof.provinsi || '—' %></div>
+                </div>
+                <div>
+                    <div class="oct-dl-key">Kota</div>
+                    <div class="oct-dl-val"><%= prof.kota || '—' %></div>
+                </div>
+                <div style="grid-column:1/-1;">
+                    <div class="oct-dl-key">Jalan</div>
+                    <div class="oct-dl-val"><%= prof.jalan || '—' %></div>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="oct-empty">
+                <div class="oct-empty-icon"><i class="fas fa-circle-user"></i></div>
+                <h3 class="oct-empty-title">Profil tidak ditemukan</h3>
+                <p class="oct-empty-text">Data akun tidak dapat dimuat. Keluar lalu masuk kembali untuk menyegarkan sesi.</p>
+            </div>
+        <% } %>
+    </div>
+</section>
+
+<script>
+    (function () {
+        /* ── Animasi ring komposisi ────────────────────────────── */
+        function animateRings() {
+            document.querySelectorAll('.dsh-ring-fill').forEach(function (ring) {
                 var target = parseFloat(ring.getAttribute('data-target'));
-                if (!isNaN(target)) {
-                    ring.style.strokeDashoffset = target;
-                }
+                if (!isNaN(target)) ring.style.strokeDashoffset = target;
             });
-        }, 400);
-    });
+        }
+
+        /* ── Filter tabel stok: pencarian + segmen status ──────── */
+        function initStokFilter() {
+            var table = document.getElementById('dshTabelStok');
+            if (!table) return;
+
+            var rows = Array.prototype.slice.call(table.querySelectorAll('.dsh-stok-row'));
+            var searchEl = document.getElementById('dshCariStok');
+            var segEl = document.getElementById('dshSegStok');
+            var emptyRow = document.getElementById('dshStokKosong');
+            var bucket = 'all';
+
+            function apply() {
+                var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+                var shown = 0;
+
+                rows.forEach(function (row) {
+                    var okBucket = bucket === 'all' || row.dataset.bucket === bucket;
+                    var okSearch = !q || (row.dataset.search || '').indexOf(q) !== -1;
+                    var hit = okBucket && okSearch;
+                    row.hidden = !hit;
+                    if (hit) shown++;
+                });
+
+                if (emptyRow) emptyRow.hidden = shown !== 0;
+            }
+
+            if (searchEl) searchEl.addEventListener('input', apply);
+
+            if (segEl) {
+                segEl.addEventListener('click', function (e) {
+                    var btn = e.target.closest('.oct-seg-item');
+                    if (!btn) return;
+                    bucket = btn.dataset.bucket;
+                    segEl.querySelectorAll('.oct-seg-item').forEach(function (b) {
+                        var on = b === btn;
+                        b.classList.toggle('active', on);
+                        b.setAttribute('aria-selected', on ? 'true' : 'false');
+                    });
+                    apply();
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initStokFilter();
+            setTimeout(animateRings, 260);
+        });
+    })();
 </script>

@@ -1,120 +1,414 @@
-<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1.5rem;">
-    <h1 style="font-family:'Poppins',sans-serif; font-size:clamp(1.25rem,3vw,1.5rem); font-weight:700; margin:0; color:var(--oct-text);">
-        <span style="margin-right:0.5rem;">&#128200;</span>Laporan Penjualan per Cabang
-    </h1>
-</div>
+<%
+    var branchList = Array.isArray(branches) ? branches : [];
+    var sum = (typeof summary !== 'undefined' && summary) ? summary : {};
+
+    function rupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
+    function angka(n) { return Number(n || 0).toLocaleString('id-ID'); }
+    function brInitial(s) { return String(s || 'C').charAt(0).toUpperCase(); }
+
+    function tglPenjualan(v) {
+        if (!v) return '—';
+        var d;
+        if (v.toDate) d = v.toDate();
+        else if (v._seconds) d = new Date(v._seconds * 1000);
+        else d = new Date(v);
+        if (!d || isNaN(d)) return '—';
+        return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    var totalPendapatan = Number(sum.totalPendapatan || 0);
+    var totalTransaksi = Number(sum.totalTransaksi || 0);
+    var totalItem = Number(sum.totalItemTerjual || 0);
+    var totalCabang = Number(sum.totalCabang != null ? sum.totalCabang : branchList.length);
+    var rataTransaksi = totalTransaksi > 0 ? Math.round(totalPendapatan / totalTransaksi) : 0;
+    var pendapatanTertinggi = 0;
+    for (var mi = 0; mi < branchList.length; mi++) {
+        pendapatanTertinggi = Math.max(pendapatanTertinggi, Number(branchList[mi].totalPendapatan || 0));
+    }
+%>
 
 <style>
-    .oct-stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
-    .oct-stat-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; padding: 1.25rem; box-shadow: var(--oct-shadow-sm); }
-    .oct-stat-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--oct-text-muted); margin-bottom: 0.375rem; }
-    .oct-stat-value { font-family: 'Poppins', sans-serif; font-size: 1.5rem; font-weight: 700; color: var(--oct-text); line-height: 1; }
-    .oct-branch-card { background: var(--oct-card); border: 1px solid var(--oct-border-light); border-radius: 16px; box-shadow: var(--oct-shadow-sm); overflow: hidden; margin-bottom: 1.25rem; }
-    .oct-branch-header { padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--oct-border-light); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-    .oct-branch-body { padding: 1.25rem 1.5rem; }
-    .oct-chart-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; height: 80px; margin-top: 0.75rem; }
-    .oct-chart-bar-wrap { flex: 1; min-width: 32px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .oct-chart-bar { width: 100%; border-radius: 6px 6px 0 0; transition: height 0.6s ease; min-height: 4px; }
-    .oct-chart-label { font-size: 0.625rem; color: var(--oct-text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48px; }
-    .oct-chart-value { font-size: 0.625rem; font-weight: 600; color: var(--oct-text-2); text-align: center; }
-    .oct-sale-item { display: flex; justify-content: space-between; align-items: center; padding: 0.625rem 0; border-bottom: 1px solid var(--oct-border-light); }
-    .oct-sale-item:last-child { border-bottom: none; }
-    .oct-rank { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 0.8125rem; color: #fff; flex-shrink: 0; }
-    @media (max-width: 767px) { .oct-stat-row { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 575px) { .oct-stat-row { grid-template-columns: 1fr; } }
+    /* View-scoped only — shared components live in layouts/base.ejs */
+    .srp-card + .srp-card { margin-top: var(--oct-gap); }
+    .srp-card[hidden] { display: none; }
+
+    /* Kontribusi pendapatan di tabel peringkat */
+    .srp-meter {
+        width: 92px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--oct-inset-2);
+        overflow: hidden;
+        display: inline-block;
+        vertical-align: middle;
+    }
+
+    .srp-meter-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: var(--oct-primary);
+    }
+
+    /* Bar chart bulanan bisa digeser saat datanya panjang */
+    .srp-barscroll {
+        overflow-x: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--oct-border) transparent;
+    }
+
+    .srp-barscroll::-webkit-scrollbar { height: 6px; }
+    .srp-barscroll::-webkit-scrollbar-thumb { background: var(--oct-border); border-radius: 3px; }
+
+    .srp-amount { text-align: right; line-height: 1.25; }
+
+    .srp-amount b {
+        display: block;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        font-variant-numeric: tabular-nums;
+        color: var(--oct-text);
+    }
+
+    @media (max-width: 575px) {
+        .srp-meter { width: 60px; }
+    }
 </style>
 
-<!-- Summary Cards -->
-<div class="oct-stat-row">
-    <div class="oct-stat-card">
-        <div class="oct-stat-label">Total Cabang</div>
-        <div class="oct-stat-value"><%= summary.totalCabang %></div>
-    </div>
-    <div class="oct-stat-card">
-        <div class="oct-stat-label">Total Pendapatan</div>
-        <div class="oct-stat-value" style="color:var(--oct-green-dark);">Rp <%= summary.totalPendapatan.toLocaleString('id-ID') %></div>
-    </div>
-    <div class="oct-stat-card">
-        <div class="oct-stat-label">Total Transaksi</div>
-        <div class="oct-stat-value"><%= summary.totalTransaksi %></div>
-    </div>
-    <div class="oct-stat-card">
-        <div class="oct-stat-label">Item Terjual</div>
-        <div class="oct-stat-value"><%= summary.totalItemTerjual %></div>
+<div class="oct-page-head">
+    <div>
+        <h1 class="oct-page-title">Laporan penjualan per cabang</h1>
+        <p class="oct-page-sub">Peringkat pendapatan tiap cabang, tren bulanannya, dan transaksi terakhir yang tercatat.</p>
     </div>
 </div>
 
-<% if (branches.length === 0) { %>
-    <div class="oct-branch-card">
-        <div class="oct-branch-body text-center" style="padding:3rem;">
-            <i class="fas fa-chart-bar" style="font-size:2.5rem; color:var(--oct-text-muted); opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
-            <span style="color:var(--oct-text-muted);">Belum ada data penjualan.</span>
+<!-- Ringkasan -->
+<div class="oct-panel mb-3">
+    <div class="oct-kpi-grid">
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon oct-kpi-icon-accent"><i class="fas fa-coins"></i></span>
+                <span class="oct-kpi-label">Total pendapatan</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value oct-kpi-value-sm"><%= rupiah(totalPendapatan) %></span>
+            </div>
+            <div class="oct-kpi-foot">Rata-rata <%= rupiah(rataTransaksi) %> per transaksi</div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-store"></i></span>
+                <span class="oct-kpi-label">Cabang menjual</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= angka(totalCabang) %></span>
+                <span class="oct-kpi-note">punya transaksi</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-receipt"></i></span>
+                <span class="oct-kpi-label">Total transaksi</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= angka(totalTransaksi) %></span>
+                <span class="oct-kpi-note">penjualan cabang</span>
+            </div>
+        </div>
+        <div class="oct-kpi oct-rise">
+            <div class="oct-kpi-head">
+                <span class="oct-kpi-icon"><i class="fas fa-cubes"></i></span>
+                <span class="oct-kpi-label">Item terjual</span>
+            </div>
+            <div class="oct-kpi-body">
+                <span class="oct-kpi-value"><%= angka(totalItem) %></span>
+                <span class="oct-kpi-note">unit</span>
+            </div>
         </div>
     </div>
+</div>
+
+<% if (branchList.length === 0) { %>
+    <div class="oct-card">
+        <div class="oct-empty">
+            <div class="oct-empty-icon"><i class="fas fa-chart-column"></i></div>
+            <h2 class="oct-empty-title">Belum ada data penjualan</h2>
+            <p class="oct-empty-text">Setiap penjualan yang dicatat cabang akan muncul di sini dan diurutkan berdasarkan pendapatan terbesar.</p>
+        </div>
+    </div>
+<% } else { %>
+
+    <!-- Peringkat cabang -->
+    <section class="oct-card mb-3">
+        <div class="oct-card-head">
+            <div>
+                <h2 class="oct-card-title">Peringkat cabang</h2>
+                <p class="oct-card-sub">Urutan awal mengikuti pendapatan terbesar. Gunakan penyaring untuk mengubah dasar urutan.</p>
+            </div>
+            <div class="oct-row">
+                <div class="oct-seg" id="srpSeg" role="tablist" aria-label="Urutkan berdasarkan">
+                    <button type="button" role="tab" class="oct-seg-item active" data-sort="rev" aria-selected="true">Pendapatan</button>
+                    <button type="button" role="tab" class="oct-seg-item" data-sort="trx" aria-selected="false">Transaksi</button>
+                    <button type="button" role="tab" class="oct-seg-item" data-sort="item" aria-selected="false">Item</button>
+                </div>
+                <div class="oct-search">
+                    <i class="fas fa-magnifying-glass"></i>
+                    <label class="oct-sr" for="srpSearch">Cari cabang</label>
+                    <input type="text" id="srpSearch" placeholder="Cari cabang atau kota…" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
+
+        <div class="oct-card-body">
+            <div class="oct-tablewrap oct-tablewrap-card">
+                <table class="oct-table" id="srpTable">
+                    <thead>
+                        <tr>
+                            <th class="col-fit">#</th>
+                            <th>Cabang</th>
+                            <th>Lokasi</th>
+                            <th class="num">Transaksi</th>
+                            <th class="num">Item</th>
+                            <th class="num">Pendapatan</th>
+                            <th class="col-fit">Kontribusi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% for (var bi = 0; bi < branchList.length; bi++) {
+                            var b = branchList[bi];
+                            var namaB = b.nama_cabang || b.username || '—';
+                            var lokasi = [b.kota, b.provinsi].filter(Boolean).join(', ');
+                            var revB = Number(b.totalPendapatan || 0);
+                            var pctB = pendapatanTertinggi > 0 ? Math.max(2, Math.round((revB / pendapatanTertinggi) * 100)) : 0;
+                        %>
+                        <tr class="srp-row"
+                            data-cabang="<%= b.cabang_id %>"
+                            data-search="<%= (namaB + ' ' + (b.username || '') + ' ' + lokasi).toLowerCase() %>"
+                            data-rev="<%= revB %>"
+                            data-trx="<%= Number(b.totalTransaksi || 0) %>"
+                            data-item="<%= Number(b.totalItemTerjual || 0) %>">
+                            <td class="col-fit oct-td-muted srp-rank"><%= bi + 1 %></td>
+                            <td>
+                                <div class="oct-cell-media">
+                                    <span class="oct-avatar oct-avatar-sm"><%= brInitial(namaB) %></span>
+                                    <span class="oct-cell-stack">
+                                        <span class="oct-cell-main"><%= namaB %></span>
+                                        <span class="oct-cell-sub"><%= b.username || '—' %></span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="oct-td-muted"><%= lokasi || '—' %></td>
+                            <td class="num"><%= angka(b.totalTransaksi) %></td>
+                            <td class="num"><%= angka(b.totalItemTerjual) %></td>
+                            <td class="num oct-td-strong"><%= rupiah(revB) %></td>
+                            <td class="col-fit">
+                                <span class="srp-meter" role="img" aria-label="<%= pctB %> persen dari cabang tertinggi">
+                                    <span class="srp-meter-fill" style="width:<%= pctB %>%;"></span>
+                                </span>
+                            </td>
+                        </tr>
+                        <% } %>
+                        <tr id="srpTableEmpty" hidden>
+                            <td colspan="7" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada cabang yang cocok.</td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" class="oct-td-muted">Total <%= angka(branchList.length) %> cabang</td>
+                            <td class="num"><%= angka(totalTransaksi) %></td>
+                            <td class="num"><%= angka(totalItem) %></td>
+                            <td class="num"><%= rupiah(totalPendapatan) %></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Rincian per cabang -->
+    <div id="srpCards">
+        <% for (var di = 0; di < branchList.length; di++) {
+            var d = branchList[di];
+            var namaD = d.nama_cabang || d.username || '—';
+            var lokasiD = [d.kota, d.provinsi].filter(Boolean).join(', ');
+            var monthly = Array.isArray(d.monthly) ? d.monthly : [];
+            var recent = Array.isArray(d.recentSales) ? d.recentSales : [];
+            var maxMonthly = 1;
+            for (var mm = 0; mm < monthly.length; mm++) maxMonthly = Math.max(maxMonthly, Number(monthly[mm].total || 0));
+            var barsWidth = Math.max(240, monthly.length * 56);
+        %>
+        <section class="oct-card srp-card"
+                 data-cabang="<%= d.cabang_id %>"
+                 data-search="<%= (namaD + ' ' + (d.username || '') + ' ' + lokasiD).toLowerCase() %>"
+                 data-rev="<%= Number(d.totalPendapatan || 0) %>"
+                 data-trx="<%= Number(d.totalTransaksi || 0) %>"
+                 data-item="<%= Number(d.totalItemTerjual || 0) %>">
+            <header class="oct-card-head">
+                <div class="oct-cell-media">
+                    <span class="oct-avatar oct-avatar-solid srp-badge"><%= di + 1 %></span>
+                    <span class="oct-cell-stack">
+                        <span class="oct-card-title"><%= namaD %></span>
+                        <span class="oct-cell-sub"><%= lokasiD || d.username || '—' %></span>
+                    </span>
+                </div>
+                <div class="srp-amount">
+                    <b><%= rupiah(d.totalPendapatan) %></b>
+                    <span class="oct-card-sub"><%= angka(d.totalTransaksi) %> transaksi &middot; <%= angka(d.totalItemTerjual) %> item</span>
+                </div>
+            </header>
+
+            <div class="oct-card-body">
+                <% if (monthly.length > 0) { %>
+                    <div class="oct-card-head oct-card-head-plain" style="padding:0 0 0.25rem;">
+                        <h3 class="oct-card-title">Pendapatan per bulan</h3>
+                        <span class="oct-chip"><%= angka(monthly.length) %> periode</span>
+                    </div>
+                    <div class="srp-barscroll">
+                        <div class="oct-bars" style="min-width:<%= barsWidth %>px;">
+                            <% for (var mb = 0; mb < monthly.length; mb++) {
+                                var m = monthly[mb];
+                                var tot = Number(m.total || 0);
+                                var h = maxMonthly > 0 ? Math.max(3, Math.round((tot / maxMonthly) * 100)) : 3;
+                                var isMax = tot > 0 && tot === maxMonthly;
+                            %>
+                            <div class="oct-bar-col <%= isMax ? 'active' : '' %>">
+                                <div class="oct-bar-track" title="<%= m.label || '' %> — <%= rupiah(tot) %> dari <%= angka(m.count) %> transaksi">
+                                    <div class="oct-bar-fill" style="height:<%= h %>%;"></div>
+                                </div>
+                                <div class="oct-bar-label"><%= m.label || '—' %></div>
+                            </div>
+                            <% } %>
+                        </div>
+                    </div>
+                <% } else { %>
+                    <p class="oct-card-sub mb-0">Belum ada rekap bulanan untuk cabang ini.</p>
+                <% } %>
+
+                <% if (recent.length > 0) { %>
+                    <div class="oct-card-head oct-card-head-plain" style="padding:1rem 0 0.5rem;">
+                        <h3 class="oct-card-title">Transaksi terakhir</h3>
+                        <span class="oct-chip"><%= angka(recent.length) %> baris</span>
+                    </div>
+                    <div class="oct-tablewrap oct-tablewrap-card">
+                        <table class="oct-table oct-table-sm oct-table-nested">
+                            <thead>
+                                <tr>
+                                    <th class="col-fit">#</th>
+                                    <th>Kode penjualan</th>
+                                    <th class="num">Item</th>
+                                    <th class="col-fit">Tanggal</th>
+                                    <th class="num">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <% for (var ri = 0; ri < recent.length; ri++) { var s = recent[ri]; %>
+                                <tr>
+                                    <td class="col-fit oct-td-muted"><%= ri + 1 %></td>
+                                    <td class="oct-mono"><%= s.kode_penjualan || '—' %></td>
+                                    <td class="num"><%= angka(s.jumlah_item) %></td>
+                                    <td class="col-fit oct-td-muted"><%= tglPenjualan(s.createdAt) %></td>
+                                    <td class="num oct-td-strong"><%= rupiah(s.total_harga) %></td>
+                                </tr>
+                                <% } %>
+                            </tbody>
+                        </table>
+                    </div>
+                <% } else { %>
+                    <p class="oct-card-sub mt-3 mb-0">Belum ada transaksi terakhir yang tercatat.</p>
+                <% } %>
+            </div>
+        </section>
+        <% } %>
+    </div>
+
+    <p class="oct-empty-text" id="srpCardsEmpty" hidden style="padding:1.25rem 0; text-align:left;">
+        Tidak ada cabang yang cocok dengan pencarian.
+    </p>
 <% } %>
 
-<% var rankColors = ['#3B82F6', '#6366F1', '#06B6D4', '#4ADE80', '#FBBF24', '#F472B6']; %>
-<% branches.forEach(function(b, idx) { var color = rankColors[idx % rankColors.length]; var maxMonthly = Math.max.apply(null, b.monthly.map(function(m) { return m.total; }).concat([1])); %>
-<div class="oct-branch-card">
-    <div class="oct-branch-header">
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-            <div class="oct-rank" style="background:<%= color %>;"><%= idx + 1 %></div>
-            <div>
-                <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1rem; color:var(--oct-text);">
-                    <%= b.nama_cabang || b.username %>
-                </div>
-                <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
-                    <% if (b.kota) { %><%= b.kota %><% if (b.provinsi) { %>, <%= b.provinsi %><% } %><% } else { %><%= b.username %><% } %>
-                </div>
-            </div>
-        </div>
-        <div style="text-align:right;">
-            <div style="font-family:'Poppins',sans-serif; font-weight:700; font-size:1.25rem; color:var(--oct-green-dark);">
-                Rp <%= b.totalPendapatan.toLocaleString('id-ID') %>
-            </div>
-            <div style="font-size:0.8125rem; color:var(--oct-text-muted);">
-                <%= b.totalTransaksi %> transaksi &bull; <%= b.totalItemTerjual %> item
-            </div>
-        </div>
-    </div>
-    <div class="oct-branch-body">
-        <% if (b.monthly.length > 0) { %>
-        <div style="font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.25rem;">
-            <i class="fas fa-chart-line" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Pendapatan per Bulan
-        </div>
-        <div class="oct-chart-row">
-            <% b.monthly.forEach(function(m) { var h = maxMonthly > 0 ? Math.max(4, Math.round((m.total / maxMonthly) * 72)) : 4; %>
-            <div class="oct-chart-bar-wrap">
-                <div class="oct-chart-value"><%= m.count %></div>
-                <div class="oct-chart-bar" style="height:<%= h %>px; background:<%= color %>;"></div>
-                <div class="oct-chart-label"><%= m.label %></div>
-            </div>
-            <% }); %>
-        </div>
-        <% } %>
+<script>
+    (function () {
+        var tableBody = document.querySelector('#srpTable tbody');
+        if (!tableBody) return;
 
-        <% if (b.recentSales.length > 0) { %>
-        <div style="margin-top:1rem; font-size:0.8125rem; font-weight:600; color:var(--oct-text-2); margin-bottom:0.5rem;">
-            <i class="fas fa-receipt" style="color:var(--oct-primary); margin-right:0.375rem;"></i> Transaksi Terakhir
-        </div>
-        <% b.recentSales.forEach(function(s) { %>
-        <div class="oct-sale-item">
-            <div>
-                <div style="font-weight:600; font-size:0.875rem; color:var(--oct-text);"><%= s.kode_penjualan %></div>
-                <div style="font-size:0.75rem; color:var(--oct-text-muted);">
-                    <%= s.jumlah_item %> item
-                    <% if (s.createdAt) { %>
-                        &bull; <% var d = s.createdAt.toDate ? s.createdAt.toDate() : (s.createdAt._seconds ? new Date(s.createdAt._seconds * 1000) : new Date(s.createdAt)); %>
-                        <%= d.toLocaleDateString('id-ID', {day:'2-digit',month:'short',year:'numeric'}) %>
-                    <% } %>
-                </div>
-            </div>
-            <div style="font-weight:700; color:var(--oct-primary); font-size:0.9375rem;">
-                Rp <%= s.total_harga.toLocaleString('id-ID') %>
-            </div>
-        </div>
-        <% }); %>
-        <% } %>
-    </div>
-</div>
-<% }); %>
+        var rows = Array.prototype.slice.call(document.querySelectorAll('.srp-row'));
+        var cards = Array.prototype.slice.call(document.querySelectorAll('.srp-card'));
+        var cardHost = document.getElementById('srpCards');
+        var searchEl = document.getElementById('srpSearch');
+        var segEl = document.getElementById('srpSeg');
+        var rowEmpty = document.getElementById('srpTableEmpty');
+        var cardEmpty = document.getElementById('srpCardsEmpty');
+        var sortKey = 'rev';
+
+        function val(el, key) { return Number(el.getAttribute('data-' + key) || 0); }
+
+        function applySort() {
+            var ordered = rows.slice().sort(function (a, b) { return val(b, sortKey) - val(a, sortKey); });
+            ordered.forEach(function (row) { tableBody.insertBefore(row, rowEmpty); });
+
+            if (cardHost) {
+                cards.slice()
+                    .sort(function (a, b) { return val(b, sortKey) - val(a, sortKey); })
+                    .forEach(function (card) { cardHost.appendChild(card); });
+            }
+            renumber();
+        }
+
+        function renumber() {
+            var n = 0;
+            rows.forEach(function (row) {
+                if (row.hidden) return;
+                n++;
+                var cell = row.querySelector('.srp-rank');
+                if (cell) cell.textContent = n;
+            });
+            var c = 0;
+            cards.forEach(function (card) {
+                if (card.hidden) return;
+                c++;
+                var badge = card.querySelector('.srp-badge');
+                if (badge) badge.textContent = c;
+            });
+        }
+
+        function applyFilter() {
+            var q = searchEl ? searchEl.value.trim().toLowerCase() : '';
+            var shown = 0;
+
+            rows.forEach(function (row) {
+                var hit = !q || (row.getAttribute('data-search') || '').indexOf(q) !== -1;
+                row.hidden = !hit;
+                if (hit) shown++;
+            });
+            cards.forEach(function (card) {
+                var hit = !q || (card.getAttribute('data-search') || '').indexOf(q) !== -1;
+                card.hidden = !hit;
+            });
+
+            if (rowEmpty) rowEmpty.hidden = shown !== 0;
+            if (cardEmpty) cardEmpty.hidden = shown !== 0;
+            renumber();
+        }
+
+        if (searchEl) searchEl.addEventListener('input', applyFilter);
+
+        if (segEl) {
+            segEl.addEventListener('click', function (e) {
+                var btn = e.target.closest('.oct-seg-item');
+                if (!btn) return;
+                sortKey = btn.getAttribute('data-sort') || 'rev';
+                segEl.querySelectorAll('.oct-seg-item').forEach(function (b) {
+                    var on = b === btn;
+                    b.classList.toggle('active', on);
+                    b.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                applySort();
+            });
+        }
+    })();
+</script>
