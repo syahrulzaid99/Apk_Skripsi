@@ -7,7 +7,7 @@
     <title>Masuk — Aqua Stock</title>
     <meta name="description" content="Masuk ke Aqua Stock — manajemen stok, pengiriman, dan penjualan distribusi Aqua Japan.">
     <meta name="theme-color" content="#F5F4FA">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236E5DE7'/><path d='M16 7c4 5.2 6 8.4 6 10.9A6 6 0 0 1 10 18C10 15.4 12 12.2 16 7z' fill='white'/></svg>">
+    <link rel="icon" href="/assets/logo.png">
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -30,11 +30,11 @@
            block in layouts/base.ejs.
            ============================================================ */
         :root {
-            --oct-primary: #6E5DE7;
-            --oct-primary-dark: #5A48D6;
-            --oct-primary-light: #C3BAF7;
-            --oct-primary-bg: #EEEBFD;
-            --oct-primary-ring: rgba(110, 93, 231, 0.18);
+            --oct-primary: #1355bf;
+            --oct-primary-dark: #1355bf;
+            --oct-primary-light: #B8D4F5;
+            --oct-primary-bg: #E9F1FB;
+            --oct-primary-ring: rgba(19, 85, 191, 0.18);
             --oct-on-primary: #FFFFFF;
 
             --oct-bg: #F5F4FA;
@@ -57,11 +57,11 @@
         }
 
         .theme-dark {
-            --oct-primary: #8C7BF5;
-            --oct-primary-dark: #A093F8;
-            --oct-primary-light: #4A3F8A;
-            --oct-primary-bg: #262238;
-            --oct-primary-ring: rgba(140, 123, 245, 0.28);
+            --oct-primary: #7FA8E8;
+            --oct-primary-dark: #9DB9F0;
+            --oct-primary-light: #3D5278;
+            --oct-primary-bg: #1E2734;
+            --oct-primary-ring: rgba(127, 168, 232, 0.28);
             --oct-on-primary: #14111F;
 
             --oct-bg: #100E18;
@@ -164,6 +164,14 @@
             flex-direction: column;
             line-height: 1.25;
             min-width: 0;
+        }
+
+        .login-brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+            display: block;
         }
 
         .login-brand-icon {
@@ -483,7 +491,7 @@
     <main class="login-card">
         <aside class="login-brand">
             <div class="login-brand-mark">
-                <span class="login-brand-icon"><i class="fas fa-droplet"></i></span>
+                <span class="login-brand-icon"><img src="/assets/logo.png" alt="Aqua Stock" class="login-brand-img"></span>
                 <span class="login-brand-meta">
                     <span class="login-brand-name">Aqua Stock</span>
                     <span class="login-brand-sub">Distribusi Aqua Japan</span>

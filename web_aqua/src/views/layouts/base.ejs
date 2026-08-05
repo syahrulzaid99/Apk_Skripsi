@@ -12,7 +12,7 @@
     <meta property="og:title" content="Aqua Stock — Aqua Japan">
     <meta property="og:description" content="Manajemen stok, pengiriman, dan penjualan distribusi Aqua Japan.">
     <meta property="og:type" content="website">
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='9' fill='%236E5DE7'/><path d='M16 7c4 5.2 6 8.4 6 10.9A6 6 0 0 1 10 18C10 15.4 12 12.2 16 7z' fill='white'/></svg>">
+    <link rel="icon" href="/assets/logo.png">
 
     <!-- Font Awesome & Google Fonts -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
@@ -51,21 +51,21 @@
 
         :root {
             /* Violet — the single UI accent. Buttons, active states, focus. */
-            --oct-primary: #6E5DE7;
-            --oct-primary-dark: #5A48D6;
-            --oct-primary-light: #C3BAF7;
-            --oct-primary-bg: #EEEBFD;
-            --oct-primary-bg-2: #E2DDFB;
-            --oct-primary-ring: rgba(110, 93, 231, 0.18);
+            --oct-primary: #1355bf;
+            --oct-primary-dark: #1355bf;
+            --oct-primary-light: #B8D4F5;
+            --oct-primary-bg: #E9F1FB;
+            --oct-primary-bg-2: #DCE8F9;
+            --oct-primary-ring: rgba(19, 85, 191, 0.18);
             --oct-on-primary: #FFFFFF;
 
             /* Data-only series. Charts and plots — never chrome. */
-            --oct-series-1: #6E5DE7;
+            --oct-series-1: #1355bf;
             --oct-series-2: #22A6A0;
             --oct-series-3: #D9930A;
             --oct-series-4: #E0658A;
             --oct-series-5: #3B6FD4;
-            --oct-accent: #6E5DE7;
+            --oct-accent: #1355bf;
             --oct-accent-2: #22A6A0;
 
             /* Semantic */
@@ -135,20 +135,20 @@
         }
 
         .theme-dark {
-            --oct-primary: #8C7BF5;
-            --oct-primary-dark: #A093F8;
-            --oct-primary-light: #4A3F8A;
-            --oct-primary-bg: #262238;
-            --oct-primary-bg-2: #2F2A47;
-            --oct-primary-ring: rgba(140, 123, 245, 0.28);
+            --oct-primary: #7FA8E8;
+            --oct-primary-dark: #9DB9F0;
+            --oct-primary-light: #3D5278;
+            --oct-primary-bg: #1E2734;
+            --oct-primary-bg-2: #263142;
+            --oct-primary-ring: rgba(127, 168, 232, 0.28);
             --oct-on-primary: #14111F;
 
-            --oct-series-1: #8C7BF5;
+            --oct-series-1: #7FA8E8;
             --oct-series-2: #3ECBC4;
             --oct-series-3: #E8B93F;
             --oct-series-4: #F08AAB;
             --oct-series-5: #6E9BF0;
-            --oct-accent: #8C7BF5;
+            --oct-accent: #7FA8E8;
             --oct-accent-2: #3ECBC4;
 
             --oct-green: #3FCB92;
@@ -171,7 +171,7 @@
             --oct-card: #191626;
             --oct-card-hover: #201C30;
             --oct-inset: #201C30;
-            --oct-inset-2: #262238;
+            --oct-inset-2: #1E2734;
 
             --oct-text: #F3F1FA;
             --oct-text-2: #ABA6C0;
@@ -186,7 +186,7 @@
             --oct-shadow-panel: 0 8px 24px rgba(0, 0, 0, 0.4);
 
             --oct-sidebar-bg: #191626;
-            --oct-sidebar-active: #262238;
+            --oct-sidebar-active: #1E2734;
             --oct-sidebar-hover: #201C30;
             --oct-sidebar-text: #ABA6C0;
             --oct-sidebar-text-active: #F3F1FA;
@@ -318,6 +318,14 @@
         }
 
         .oct-sidebar-brand:hover { text-decoration: none; }
+
+        .oct-sidebar-brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 11px;
+            display: block;
+        }
 
         .oct-sidebar-brand-icon {
             width: 34px;
@@ -2560,7 +2568,7 @@
         <!-- Sidebar -->
         <aside class="oct-sidebar" id="octSidebar">
             <a class="oct-sidebar-brand" href="/dashboard">
-                <div class="oct-sidebar-brand-icon"><i class="fas fa-droplet"></i></div>
+                <div class="oct-sidebar-brand-icon"><img src="/assets/logo.png" alt="Aqua Stock" class="oct-brand-img"></div>
                 <div class="oct-sidebar-brand-meta">
                     <span class="oct-sidebar-brand-text">Aqua Stock</span>
                     <span class="oct-sidebar-brand-sub">Distribusi Aqua Japan</span>

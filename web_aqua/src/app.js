@@ -32,6 +32,7 @@ app.set('layout', 'layouts/base'); // default layout = views/layouts/base.ejs
 
 // serve file statis (gambar via Cloudinary, bukan local uploads)
 app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
 // Routes
 const authRoutes = require('./routes/auth.route');
