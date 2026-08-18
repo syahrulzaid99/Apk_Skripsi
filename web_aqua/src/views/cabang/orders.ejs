@@ -15,7 +15,7 @@
     function rupiah(n) { return 'Rp ' + Number(n || 0).toLocaleString('id-ID'); }
 
     var STATUS_LABEL = {
-        pending: 'Menunggu', approved_admin: 'Disetujui', dipaket: 'Dipaket',
+        pending: 'Menunggu', approved_sales: 'Disetujui Sales', approved_admin: 'Disetujui', dipaket: 'Dipaket',
         dikirim: 'Dikirim', diterima: 'Diterima', selesai: 'Selesai', ditolak: 'Ditolak'
     };
     // Lifecycle order used by the progress rail
@@ -36,7 +36,7 @@
         }
         nilaiTotal += tk;
         if (stk === 'pending') countMenunggu++;
-        else if (stk === 'dikirim' || stk === 'dipaket' || stk === 'approved_admin') countJalan++;
+        else if (stk === 'dikirim' || stk === 'dipaket' || stk === 'approved_admin' || stk === 'approved_sales') countJalan++;
         else if (stk === 'diterima' || stk === 'selesai') countSelesai++;
     }
 

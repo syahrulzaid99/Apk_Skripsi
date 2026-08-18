@@ -230,12 +230,16 @@ class _PembelianTabState extends State<_PembelianTab>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text(o['kode_order'] ?? '-',
-                    style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: cs.onSurface)),
-                const Spacer(),
+                Flexible(
+                  child: Text(o['kode_order'] ?? '-',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          color: cs.onSurface)),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

@@ -28,7 +28,7 @@
     }
 
     var REP_LABEL = {
-        pending: 'Menunggu', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
+        pending: 'Menunggu', approved_sales: 'Disetujui sales', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
         dikirim: 'Dikirim', terkirim: 'Dikirim', diterima: 'Diterima',
         selesai: 'Selesai', ditolak: 'Ditolak', rejected: 'Ditolak'
     };
@@ -53,7 +53,7 @@
     var repBuckets = [
         { key: 'all',     label: 'Semua',    n: repOrders.length, rx: '' },
         { key: 'pending', label: 'Menunggu', n: nMenunggu, rx: '(?:^|\\s)pending(?:\\s|$)' },
-        { key: 'proses',  label: 'Diproses', n: nProses,   rx: '(?:^|\\s)(?:approved_admin|dipaket|dikirim|terkirim)(?:\\s|$)' },
+        { key: 'proses',  label: 'Diproses', n: nProses,   rx: '(?:^|\\s)(?:approved_sales|approved_admin|dipaket|dikirim|terkirim)(?:\\s|$)' },
         { key: 'selesai', label: 'Selesai',  n: nSelesai,  rx: '(?:^|\\s)(?:selesai|diterima)(?:\\s|$)' },
         { key: 'ditolak', label: 'Ditolak',  n: nDitolak,  rx: '(?:^|\\s)(?:ditolak|rejected)(?:\\s|$)' }
     ];
@@ -61,6 +61,7 @@
     // Status distribution — exactly the six figures the route computes
     var repDist = [
         { key: 'pending',        label: 'Menunggu',     n: Number(repStatus.pending || 0) },
+        { key: 'approved_sales', label: 'Disetujui sales', n: Number(repStatus.approved_sales || 0) },
         { key: 'approved_admin', label: 'Diverifikasi', n: Number(repStatus.approved_admin || 0) },
         { key: 'dipaket',        label: 'Dikemas',      n: Number(repStatus.dipaket || 0) },
         { key: 'dikirim',        label: 'Dikirim',      n: Number(repStatus.dikirim || 0) },
@@ -181,7 +182,7 @@
             <h2 class="oct-empty-title">Belum ada data penjualan</h2>
             <p class="oct-empty-text">Setiap pesanan yang Anda buat untuk cabang akan terangkum di sini beserta pendapatan dan statusnya.</p>
             <div class="oct-empty-actions">
-                <a class="btn btn-primary" href="/sales/orders"><i class="fas fa-cart-plus mr-2"></i>Buat pesanan</a>
+                <a class="btn btn-primary" href="/sales/orders"><i class="fas fa-receipt mr-2"></i>Pesanan cabang</a>
             </div>
         </div>
     </div>

@@ -21,31 +21,41 @@
         return c.username || c.nama_cabang || o.cabang_id || '—';
     }
 
-    // approved_sales / rejected adalah status keputusan sales
-    function keputusan(s) { return s === 'approved_sales' ? 'disetujui' : 'ditolak'; }
-    function pillClass(s) { return s === 'approved_sales' ? 'oct-pill-disetujui' : 'oct-pill-ditolak'; }
-    function pillLabel(s) { return s === 'approved_sales' ? 'Disetujui' : 'Ditolak'; }
+    // Keputusan sales ditentukan dari field SIAPA yang mengambil keputusan, bukan status saat ini.
+    // Setelah disetujui, status bisa lanjut ke approved_admin/dipaket/dikirim/diterima, atau diubah
+    // admin menjadi ditolak — bagi sales, keputusan yang diambilnya tetap "disetujui".
+    function keputusan(o) {
+        if (o.approved_sales_by) return 'disetujui';
+        if (o.rejected_by) return 'ditolak';
+        return 'lainnya';
+    }
+    function pillClass(b) { return b === 'disetujui' ? 'oct-pill-disetujui' : (b === 'ditolak' ? 'oct-pill-ditolak' : 'oct-pill-secondary'); }
+    function pillLabel(b) { return b === 'disetujui' ? 'Disetujui' : (b === 'ditolak' ? 'Ditolak' : 'Lainnya'); }
 
-    var nSetuju = 0, nTolak = 0, nilaiSetuju = 0, nilaiTotal = 0, nUnit = 0;
+    var nSetuju = 0, nTolak = 0, nLainnya = 0, nilaiSetuju = 0, nilaiTotal = 0, nUnit = 0;
     for (var k = 0; k < list.length; k++) {
-        var stk = String(list[k].status || '').toLowerCase();
-        var tk = Number(list[k].total_harga || 0);
+        var o = list[k];
+        var tk = Number(o.total_harga || 0);
         nilaiTotal += tk;
 
-        if (keputusan(stk) === 'disetujui') { nSetuju++; nilaiSetuju += tk; }
-        else nTolak++;
+        var kp = keputusan(o);
+        if (kp === 'disetujui') { nSetuju++; nilaiSetuju += tk; }
+        else if (kp === 'ditolak') nTolak++;
+        else nLainnya++;
 
-        var itk = Array.isArray(list[k].items) ? list[k].items : [];
+        var itk = Array.isArray(o.items) ? o.items : [];
         for (var z = 0; z < itk.length; z++) nUnit += Number(itk[z].qty || 0);
     }
 
     var rasio = list.length ? Math.round((nSetuju / list.length) * 100) : 0;
+    var rasioTolak = list.length ? Math.round((nTolak / list.length) * 100) : 0;
 
     var buckets = [
         { key: 'all', label: 'Semua', n: list.length },
         { key: 'disetujui', label: 'Disetujui', n: nSetuju },
         { key: 'ditolak', label: 'Ditolak', n: nTolak }
     ];
+    if (nLainnya > 0) buckets.push({ key: 'lainnya', label: 'Lainnya', n: nLainnya });
 %>
 
 <style>
@@ -114,7 +124,7 @@
                 <div class="oct-kpi-body">
                     <span class="oct-kpi-value"><%= nTolak %></span>
                     <% if (nTolak > 0) { %>
-                        <span class="oct-delta oct-delta-down"><i class="fas fa-arrow-down"></i> <%= 100 - rasio %>%</span>
+                        <span class="oct-delta oct-delta-down"><i class="fas fa-arrow-down"></i> <%= rasioTolak %>%</span>
                     <% } else { %>
                         <span class="oct-kpi-note">tidak ada penolakan</span>
                     <% } %>
@@ -168,17 +178,16 @@
                             <th>Cabang</th>
                             <th class="num">Item</th>
                             <th class="num">Total</th>
-                            <th>Alasan ditolak</th>
+                            <th>Catatan / Alasan</th>
                             <th class="col-fit">Keputusan</th>
                         </tr>
                     </thead>
                     <tbody>
                         <% for (var si = 0; si < list.length; si++) {
                             var o = list[si];
-                            var st = String(o.status || '').toLowerCase();
-                            var bkt = keputusan(st);
+                            var bkt = keputusan(o);
                             var itemsO = Array.isArray(o.items) ? o.items : [];
-                            var cari = ((o.kode_order || '') + ' ' + namaCabang(o) + ' ' + (o.rejection_reason || '')).toLowerCase();
+                            var cari = ((o.kode_order || '') + ' ' + namaCabang(o) + ' ' + (o.rejection_reason || '') + ' ' + (o.keterangan_sales || '')).toLowerCase();
                         %>
                         <tr data-bucket="<%= bkt %>" data-search="<%= cari %>">
                             <td class="col-fit oct-td-muted"><%= si + 1 %></td>
@@ -201,11 +210,13 @@
                             <td class="num oct-td-strong"><%= rupiah(o.total_harga) %></td>
                             <td class="oct-td-muted">
                                 <% if (o.rejection_reason) { %>
-                                    <span class="slh-reason" title="<%= o.rejection_reason %>"><%= o.rejection_reason %></span>
+                                    <span class="slh-reason" title="<%= o.rejection_reason %>"><i class="fas fa-circle-xmark" style="font-size:0.6875rem; margin-right:0.3rem;"></i><%= o.rejection_reason %></span>
+                                <% } else if (o.keterangan_sales) { %>
+                                    <span class="slh-reason" title="<%= o.keterangan_sales %>"><i class="fas fa-pen" style="font-size:0.6875rem; margin-right:0.3rem;"></i><%= o.keterangan_sales %></span>
                                 <% } else { %>—<% } %>
                             </td>
                             <td class="col-fit">
-                                <span class="oct-pill oct-pill-dot <%= pillClass(st) %>"><%= pillLabel(st) %></span>
+                                <span class="oct-pill oct-pill-dot <%= pillClass(bkt) %>"><%= pillLabel(bkt) %></span>
                             </td>
                         </tr>
                         <% } %>

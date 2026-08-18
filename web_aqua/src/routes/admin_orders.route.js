@@ -35,7 +35,9 @@ async function getUsersMapByIds(ids = []) {
 router.get('/admin/orders', requireAuth, requireRole(['admin']), csrfProtection, async (req, res) => {
     try {
         const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
-        const orders = snap.docs.map(d => d.data());
+        const allOrders = snap.docs.map(d => d.data());
+        // Admin hanya melihat pesanan yang sudah dikonfirmasi sales (pending = antrean sales)
+        const orders = allOrders.filter(o => (o.status || '').toLowerCase() !== 'pending');
 
         const cabangIds = [...new Set(orders.map(o => o.cabang_id).filter(Boolean))];
         const usersMap = await getUsersMapByIds(cabangIds);
@@ -83,7 +85,7 @@ router.get('/admin/orders/check-new', requireAuth, requireRole(['admin']), async
             .orderBy('createdAt', 'desc')
             .get();
 
-        const pendingDocs = snap.docs.filter(d => d.data().status === 'pending');
+        const pendingDocs = snap.docs.filter(d => d.data().status === 'approved_sales');
 
         if (pendingDocs.length === 0) {
             return res.json({ hasNew: false, orders: [] });
@@ -126,9 +128,8 @@ router.post('/admin/orders/:id', requireAuth, requireRole(['admin']), csrfProtec
 
         const currentData = cur.data();
 
-        // Admin hanya bisa: pending+dibayar → approved_admin
+        // Admin hanya bisa memverifikasi pesanan yang sudah dikonfirmasi sales
         const curStatus = (currentData.status || '').toLowerCase();
-        const paymentStatus = (currentData.payment_status || '').toLowerCase();
 
         if (curStatus === 'selesai' || curStatus === 'diterima') {
             return res.redirect('/admin/orders?err=' + encodeURIComponent('Pesanan sudah selesai dan tidak dapat diubah'));
@@ -139,12 +140,8 @@ router.post('/admin/orders/:id', requireAuth, requireRole(['admin']), csrfProtec
         if (curStatus === 'dipaket') {
             return res.redirect('/admin/orders?err=' + encodeURIComponent('Pesanan sedang dikemas gudang'));
         }
-        if (curStatus !== 'pending') {
-            return res.redirect('/admin/orders?err=' + encodeURIComponent('Pesanan harus berstatus pending'));
-        }
-        // Wajib sudah dibayar
-        if (paymentStatus !== 'settlement') {
-            return res.redirect('/admin/orders?err=' + encodeURIComponent('Pesanan belum dibayar oleh cabang'));
+        if (curStatus !== 'approved_sales') {
+            return res.redirect('/admin/orders?err=' + encodeURIComponent('Pesanan harus sudah dikonfirmasi sales'));
         }
 
         const newStatus = 'approved_admin';

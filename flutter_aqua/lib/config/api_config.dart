@@ -2,7 +2,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
 
-  static const String defaultBaseUrl = 'http://192.168.8.101:3000';
+  static const String defaultBaseUrl = 'http://172.28.64.1:3000';
   static const String _storageKey = 'api_base_url';
 
   static String? _cachedUrl;

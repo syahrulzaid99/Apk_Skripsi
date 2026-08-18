@@ -2,7 +2,6 @@
     var list = Array.isArray(orders) ? orders : [];
     var umap = (usersMap && typeof usersMap === 'object') ? usersMap : {};
     var cabangs = Array.isArray(cabangList) ? cabangList : [];
-    var prods = Array.isArray(products) ? products : [];
 
     function slDate(v) {
         if (!v) return null;
@@ -23,7 +22,7 @@
     }
 
     var STATUS_LABEL = {
-        pending: 'Menunggu', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
+        pending: 'Menunggu', approved_sales: 'Dikonfirmasi', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
         dikirim: 'Dikirim', diterima: 'Diterima', selesai: 'Selesai',
         ditolak: 'Ditolak', rejected: 'Ditolak'
     };
@@ -37,6 +36,7 @@
     // Kelompok status untuk segmented filter
     function bucketOf(s) {
         if (s === 'pending') return 'pending';
+        if (s === 'approved_sales') return 'approved_sales';
         if (s === 'approved_admin') return 'approved_admin';
         if (s === 'dipaket') return 'dipaket';
         if (s === 'dikirim') return 'dikirim';
@@ -45,7 +45,7 @@
         return 'lainnya';
     }
 
-    var cnt = { pending: 0, approved_admin: 0, dipaket: 0, dikirim: 0, diterima: 0, ditolak: 0, lainnya: 0 };
+    var cnt = { pending: 0, approved_sales: 0, approved_admin: 0, dipaket: 0, dikirim: 0, diterima: 0, ditolak: 0, lainnya: 0 };
     var nilaiTotal = 0, nLunas = 0, nBelumBayar = 0, nUnit = 0;
 
     for (var k = 0; k < list.length; k++) {
@@ -65,6 +65,7 @@
     var buckets = [
         { key: 'all', label: 'Semua', n: list.length },
         { key: 'pending', label: 'Menunggu', n: cnt.pending },
+        { key: 'approved_sales', label: 'Dikonfirmasi', n: cnt.approved_sales },
         { key: 'approved_admin', label: 'Diverifikasi', n: cnt.approved_admin },
         { key: 'dipaket', label: 'Dikemas', n: cnt.dipaket },
         { key: 'dikirim', label: 'Dikirim', n: cnt.dikirim },
@@ -96,13 +97,8 @@
 
 <div class="oct-page-head">
     <div>
-        <h1 class="oct-page-title">Buat pesanan untuk cabang</h1>
-        <p class="oct-page-sub">Ajukan permintaan stok atas nama cabang dan pantau status seluruh pesanan yang berjalan.</p>
-    </div>
-    <div class="oct-page-actions">
-        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCreate">
-            <i class="fas fa-plus mr-2"></i>Buat pesanan
-        </button>
+        <h1 class="oct-page-title">Pesanan Cabang</h1>
+        <p class="oct-page-sub">Konfirmasi pesanan cabang yang sudah masuk, lalu teruskan ke admin untuk verifikasi pengiriman.</p>
     </div>
 </div>
 
@@ -112,11 +108,7 @@
             <div class="oct-empty-icon"><i class="fas fa-cart-shopping"></i></div>
             <h2 class="oct-empty-title">Belum ada pesanan</h2>
             <p class="oct-empty-text">Pesanan yang Anda buat untuk cabang akan tampil di sini lengkap dengan status persetujuan dan pembayarannya.</p>
-            <div class="oct-empty-actions">
-                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modalCreate">
-                    <i class="fas fa-plus mr-2"></i>Buat pesanan pertama
-                </button>
-            </div>
+
         </div>
     </div>
 <% } else { %>
@@ -226,6 +218,7 @@
                             <th class="num">Total</th>
                             <th class="col-fit">Pembayaran</th>
                             <th class="col-fit">Status</th>
+                            <th class="col-fit">Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -265,10 +258,30 @@
                             <td class="col-fit">
                                 <span class="oct-pill oct-pill-dot oct-pill-<%= st %>"><%= STATUS_LABEL[st] || st || '—' %></span>
                             </td>
+                            <td class="col-fit">
+                                <% if (st === 'pending' && (pay === 'settlement' || pay === 'capture')) { %>
+                                    <div class="d-flex align-items-center" style="gap:0.375rem; flex-wrap:wrap;">
+                                        <form method="POST" action="/sales/orders/<%= o.id %>/approve" class="sales-approve-form" data-kode="<%= o.kode_order || '' %>">
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                            <input type="hidden" name="keterangan" value="">
+                                            <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-check-double mr-1"></i>Konfirmasi</button>
+                                        </form>
+                                        <form method="POST" action="/sales/orders/<%= o.id %>/reject" class="sales-reject-form" data-kode="<%= o.kode_order || '' %>">
+                                            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                            <input type="hidden" name="alasan" value="">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-xmark mr-1"></i>Tolak</button>
+                                        </form>
+                                    </div>
+                                <% } else if (st === 'pending') { %>
+                                    <span class="oct-cell-sub">Menunggu pembayaran</span>
+                                <% } else { %>
+                                    <span class="oct-td-muted">—</span>
+                                <% } %>
+                            </td>
                         </tr>
                         <% } %>
                         <tr id="sloNoMatch" hidden>
-                            <td colspan="7" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada pesanan yang cocok dengan filter.</td>
+                            <td colspan="8" class="oct-td-muted text-center" style="padding:1.5rem;">Tidak ada pesanan yang cocok dengan filter.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -276,118 +289,6 @@
         </div>
     </section>
 <% } %>
-
-<!-- Modal: buat pesanan -->
-<div class="modal fade" id="modalCreate" tabindex="-1" role="dialog" aria-labelledby="modalCreateLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-        <form method="post" action="/sales/orders" class="modal-content">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="modal-header">
-                <div>
-                    <h5 class="modal-title" id="modalCreateLabel">Buat pesanan untuk cabang</h5>
-                    <p class="oct-card-sub">Pilih cabang tujuan, lalu isi kuantitas pada produk yang dipesan.</p>
-                </div>
-                <button type="button" class="close" data-dismiss="modal" title="Tutup" aria-label="Tutup"><span aria-hidden="true">&times;</span></button>
-            </div>
-
-            <div class="modal-body">
-                <div class="form-row mb-3">
-                    <div class="col-md-6 form-group mb-2 mb-md-0">
-                        <label for="cabangTujuan">Cabang tujuan <span class="text-danger">*</span></label>
-                        <select name="cabang_id" id="cabangTujuan" class="form-control" required>
-                            <option value="">— pilih cabang —</option>
-                            <% for (var cj = 0; cj < cabangs.length; cj++) { %>
-                                <option value="<%= cabangs[cj].id %>"><%= cabangs[cj].username %></option>
-                            <% } %>
-                        </select>
-                    </div>
-                    <div class="col-md-6 form-group mb-0">
-                        <label for="salesKeterangan">Keterangan <span class="oct-label-hint">(opsional)</span></label>
-                        <input name="keterangan" id="salesKeterangan" class="form-control" placeholder="Catatan tambahan untuk pusat">
-                    </div>
-                </div>
-
-                <div class="oct-card-head oct-card-head-plain" style="padding:0 0 0.625rem;">
-                    <div>
-                        <h3 class="oct-card-title">Pilih produk</h3>
-                        <p class="oct-card-sub">Isi kolom qty pesan pada produk yang dibutuhkan cabang.</p>
-                    </div>
-                    <div class="oct-search">
-                        <i class="fas fa-magnifying-glass"></i>
-                        <label class="oct-sr" for="searchProduct">Cari produk</label>
-                        <input type="text" id="searchProduct" placeholder="Cari nama produk atau SKU…" autocomplete="off">
-                    </div>
-                </div>
-
-                <div class="oct-table-hint"><i class="fas fa-arrows-left-right"></i> Geser tabel untuk melihat semua kolom</div>
-
-                <div class="oct-tablewrap oct-tablewrap-card slo-picker-wrap">
-                    <table class="oct-table oct-table-sm" id="productsTable">
-                        <thead>
-                            <tr>
-                                <th>Produk</th>
-                                <th>Satuan</th>
-                                <th class="num">Harga</th>
-                                <th class="num">Stok pusat</th>
-                                <th class="num" style="min-width:110px;">Qty pesan</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (prods.length === 0) { %>
-                                <tr><td colspan="5" class="oct-td-muted text-center" style="padding:1.5rem;">Belum ada produk yang bisa dipesan.</td></tr>
-                            <% } %>
-                            <% for (var pi = 0; pi < prods.length; pi++) { var p = prods[pi]; %>
-                            <tr class="product-row" data-search="<%= ((p.nama_produk || '') + ' ' + (p.sku || '')).toLowerCase() %>">
-                                <td>
-                                    <div class="oct-cell-media">
-                                        <% if (p.gambar_url) { %>
-                                            <img class="oct-thumb" src="<%= p.gambar_url %>" alt="Foto produk <%= p.nama_produk || 'tanpa nama' %>" loading="lazy">
-                                        <% } else { %>
-                                            <span class="oct-thumb oct-thumb-empty"><i class="fas fa-image"></i></span>
-                                        <% } %>
-                                        <span class="oct-cell-stack">
-                                            <span class="oct-cell-main"><%= p.nama_produk || '—' %></span>
-                                            <span class="oct-cell-sub oct-mono"><%= p.sku || '—' %></span>
-                                        </span>
-                                    </div>
-                                </td>
-                                <td class="oct-td-muted"><%= p.satuan || '—' %></td>
-                                <td class="num"><%= rupiah(p.harga_jual) %></td>
-                                <td class="num oct-td-strong"><%= Number(p.stok || 0).toLocaleString('id-ID') %></td>
-                                <td class="num">
-                                    <label class="oct-sr" for="qty_<%= p.id %>">Qty pesan untuk <%= p.nama_produk || '' %></label>
-                                    <input type="number" id="qty_<%= p.id %>" class="form-control form-control-sm qty-input slo-qty"
-                                           name="qty_<%= p.id %>"
-                                           data-product-id="<%= p.id %>"
-                                           data-product-name="<%= p.nama_produk %>"
-                                           data-harga="<%= Number(p.harga_jual || 0) %>"
-                                           min="0" max="<%= p.stok || 0 %>" value="0" inputmode="numeric">
-                                </td>
-                            </tr>
-                            <% } %>
-                            <tr id="prodNoMatch" hidden>
-                                <td colspan="5" class="oct-td-muted text-center" style="padding:1.5rem;">Produk tidak ditemukan.</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="oct-stat-row mt-3">
-                    <span class="oct-stat-key">Perkiraan total</span>
-                    <span class="oct-stat-value" id="sloEstTotal" style="font-size:1rem;">Rp 0</span>
-                </div>
-                <p class="oct-card-sub mt-2 mb-0">Harga final mengikuti data produk saat pesanan diproses pusat.</p>
-            </div>
-
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" type="button" data-dismiss="modal">Batal</button>
-                <button class="btn btn-primary" type="submit"><i class="fas fa-cart-shopping mr-2"></i>Buat pesanan</button>
-            </div>
-
-            <input type="hidden" name="data_barang_json" id="salesDataBarang">
-        </form>
-    </div>
-</div>
 
 <script>
     (function () {
@@ -453,81 +354,44 @@
             }
         }
 
-        /* ── Pencarian produk di dalam modal ───────────────────── */
-        var searchProduct = document.getElementById('searchProduct');
-        if (searchProduct) {
-            searchProduct.addEventListener('keyup', function () {
-                var q = this.value.trim().toLowerCase();
-                var shown = 0;
-                document.querySelectorAll('.product-row').forEach(function (row) {
-                    var hit = !q || (row.getAttribute('data-search') || '').indexOf(q) >= 0;
-                    row.style.display = hit ? '' : 'none';
-                    if (hit) shown++;
-                });
-                var noMatch = document.getElementById('prodNoMatch');
-                if (noMatch) noMatch.hidden = shown !== 0;
+        /* ── Konfirmasi / tolak pesanan oleh sales ────────────── */
+        document.addEventListener('submit', function (ev) {
+            var form = ev.target;
+            if (!form.matches || !form.matches('.sales-approve-form, .sales-reject-form')) return;
+            ev.preventDefault();
+
+            var isApprove = form.classList.contains('sales-approve-form');
+            var kode = form.dataset.kode || 'pesanan ini';
+            var inputName = isApprove ? 'keterangan' : 'alasan';
+
+            Swal.fire({
+                icon: isApprove ? 'question' : 'warning',
+                title: isApprove ? 'Konfirmasi pesanan?' : 'Tolak pesanan?',
+                text: isApprove
+                    ? 'Pesanan ' + kode + ' akan dikonfirmasi dan diteruskan ke admin untuk verifikasi pengiriman.'
+                    : 'Pesanan ' + kode + ' akan ditolak. Stok pusat dikembalikan otomatis.',
+                input: isApprove ? 'text' : 'textarea',
+                inputLabel: isApprove ? 'Catatan untuk admin (opsional)' : 'Alasan penolakan (wajib)',
+                inputPlaceholder: isApprove ? 'Tulis catatan…' : 'Tulis alasan penolakan…',
+                inputValidator: isApprove ? null : function (v) {
+                    if (!v || !String(v).trim()) return 'Alasan penolakan wajib diisi';
+                },
+                showCancelButton: true,
+                confirmButtonText: isApprove ? 'Ya, konfirmasi' : 'Ya, tolak',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then(function (r) {
+                if (!r.isConfirmed) return;
+                var inp = form.querySelector('input[name="' + inputName + '"]');
+                if (inp) inp.value = (r.value || '').trim();
+                form.submit();
             });
-        }
-
-        /* ── Perkiraan total + kirim data_barang_json ──────────── */
-        var createForm = document.querySelector('#modalCreate form');
-        if (createForm) {
-            var estEl = document.getElementById('sloEstTotal');
-
-            function recalc() {
-                var total = 0;
-                createForm.querySelectorAll('.qty-input').forEach(function (inp) {
-                    var qty = parseInt(inp.value, 10) || 0;
-                    if (qty > 0) total += qty * (Number(inp.getAttribute('data-harga')) || 0);
-                });
-                if (estEl) estEl.textContent = 'Rp ' + total.toLocaleString('id-ID');
-            }
-
-            createForm.querySelectorAll('.qty-input').forEach(function (inp) {
-                inp.addEventListener('input', function () {
-                    var max = Number(inp.getAttribute('max') || 0);
-                    if (Number(inp.value) > max) inp.value = max;
-                    if (Number(inp.value) < 0) inp.value = 0;
-                    recalc();
-                });
-            });
-
-            createForm.addEventListener('submit', function (e) {
-                var items = [];
-                createForm.querySelectorAll('.qty-input').forEach(function (inp) {
-                    var qty = parseInt(inp.value, 10) || 0;
-                    if (qty > 0) items.push({ product_id: inp.getAttribute('data-product-id'), qty: qty });
-                });
-
-                if (items.length === 0) {
-                    e.preventDefault();
-                    Swal.fire({
-                        icon: 'warning',
-                        title: 'Belum ada produk dipilih',
-                        text: 'Isi kuantitas minimal satu produk sebelum membuat pesanan.'
-                    });
-                    return;
-                }
-
-                document.getElementById('salesDataBarang').value = JSON.stringify(items);
-            });
-
-            $('#modalCreate').on('hidden.bs.modal', function () {
-                createForm.reset();
-                var hidden = document.getElementById('salesDataBarang');
-                if (hidden) hidden.value = '';
-                document.querySelectorAll('.product-row').forEach(function (row) { row.style.display = ''; });
-                var noMatch = document.getElementById('prodNoMatch');
-                if (noMatch) noMatch.hidden = true;
-                recalc();
-            });
-
-            recalc();
-        }
+        }, true);
 
         /* ── Flash messages ────────────────────────────────────── */
         Aqua.flash({
-            created: 'Pesanan berhasil dibuat'
+            approved: 'Pesanan dikonfirmasi ke admin',
+            rejected: 'Pesanan ditolak'
         });
     })();
 </script>

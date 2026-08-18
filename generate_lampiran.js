@@ -1,216 +1,240 @@
-const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, PageBreak } = require("docx");
-const fs = require("fs");
-const path = require("path");
+const {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  AlignmentType,
+  BorderStyle,
+  SectionType,
+} = require('docx');
+const fs = require('fs');
+const path = require('path');
 
-// =============================================
-// FILE INTI SAJA - UNTUK SEMINAR HASIL SKRIPSI
-// =============================================
+// Margin 4-4-3-3 cm: atas, kiri, bawah, kanan.
+const TWIPS_PER_CM = 567;
+const MARGINS = {
+  top: 4 * TWIPS_PER_CM,
+  left: 4 * TWIPS_PER_CM,
+  bottom: 3 * TWIPS_PER_CM,
+  right: 3 * TWIPS_PER_CM,
+};
+
+const FONT = 'Times New Roman';
+const CODE_SIZE = 24; // 12 pt dalam satuan half-point milik docx.
+const ROOT = __dirname;
+const OUTPUT = path.join(ROOT, 'Lampiran_Listing_Program.docx');
+
+// Hanya bagian penting yang ditampilkan; bagian lain dari file diberi penanda.
 const sections = [
   {
-    title: "APLIKASI MOBILE (Flutter)",
+    title: 'A. APLIKASI MOBILE (FLUTTER)',
     files: [
-      { label: "main.dart", path: "flutter_aqua/lib/main.dart" },
-      { label: "pubspec.yaml", path: "flutter_aqua/pubspec.yaml" },
+      { label: 'Inisialisasi aplikasi', path: 'flutter_aqua/lib/main.dart' },
+      { label: 'Konfigurasi alamat API', path: 'flutter_aqua/lib/config/api_config.dart' },
+      { label: 'Penyimpanan autentikasi', path: 'flutter_aqua/lib/services/auth_service.dart' },
+      {
+        label: 'Klien API: login, pengiriman, dan pesanan',
+        path: 'flutter_aqua/lib/services/api_client.dart',
+        ranges: [[1, 46], [48, 90], [106, 119]],
+      },
+      { label: 'Routing berdasarkan role pengguna', path: 'flutter_aqua/lib/screens/auth/auth_gate.dart' },
     ],
   },
   {
-    title: "BACKEND SERVER (Node.js)",
+    title: 'B. BACKEND SERVER (NODE.JS)',
     files: [
-      { label: "app.js", path: "web_aqua/src/app.js" },
-      { label: "firebaseAdmin.js", path: "web_aqua/src/firebaseAdmin.js" },
-    ],
-  },
-  {
-    title: "AUTENTIKASI",
-    files: [
-      { label: "auth.route.js", path: "web_aqua/src/routes/auth.route.js" },
-      { label: "auth.js (middleware)", path: "web_aqua/src/middleware/auth.js" },
-    ],
-  },
-  {
-    title: "FITUR UTAMA (Routes)",
-    files: [
-      { label: "products.route.js", path: "web_aqua/src/routes/products.route.js" },
-      { label: "admin_orders.route.js", path: "web_aqua/src/routes/admin_orders.route.js" },
-      { label: "cabang_orders.route.js", path: "web_aqua/src/routes/cabang_orders.route.js" },
-      { label: "shipments.route.js", path: "web_aqua/src/routes/shipments.route.js" },
-      { label: "cabang/shipments.route.js", path: "web_aqua/src/routes/cabang/shipments.route.js" },
+      { label: 'Konfigurasi Express dan route utama', path: 'web_aqua/src/app.js' },
+      { label: 'Inisialisasi Firebase Admin dan Firestore', path: 'web_aqua/src/firebaseAdmin.js' },
+      { label: 'Middleware JWT dan pembatasan role', path: 'web_aqua/src/middleware/auth.js', ranges: [[1, 58]] },
+      {
+        label: 'Autentikasi web dan API',
+        path: 'web_aqua/src/routes/auth.route.js',
+        ranges: [[1, 8], [11, 13], [64, 130]],
+      },
+      {
+        label: 'Manajemen produk dan upload gambar',
+        path: 'web_aqua/src/routes/products.route.js',
+        ranges: [[1, 94]],
+      },
+      {
+        label: 'Pembuatan pesanan cabang',
+        path: 'web_aqua/src/routes/cabang_orders.route.js',
+        ranges: [[57, 134]],
+      },
+      {
+        label: 'Pembuatan pengiriman dan pengurangan stok',
+        path: 'web_aqua/src/routes/shipments.route.js',
+        ranges: [[19, 35], [91, 171]],
+      },
+      {
+        label: 'Konfirmasi penerimaan pengiriman cabang',
+        path: 'web_aqua/src/routes/cabang/shipments.route.js',
+        ranges: [[14, 22], [130, 217]],
+      },
+      { label: 'Pembentukan kode pesanan dan resi', path: 'web_aqua/src/utils/generateCode.js' },
     ],
   },
 ];
 
-function createCodeParagraphs(code) {
-  const lines = code.split("\n");
-  const paragraphs = [];
-  for (let i = 0; i < lines.length; i++) {
-    const lineNum = String(i + 1).padStart(4, " ");
-    const lineContent = lines[i].replace(/\t/g, "    ").replace(/\r/g, "");
-    paragraphs.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: lineNum + " | ", font: "Consolas", size: 16, color: "888888" }),
-          new TextRun({ text: lineContent || " ", font: "Consolas", size: 16, color: "000000" }),
-        ],
-        spacing: { after: 0, before: 0, line: 240 },
-      })
-    );
-  }
-  return paragraphs;
+function readListing(file) {
+  const absolutePath = path.join(ROOT, file.path);
+  const source = fs.readFileSync(absolutePath, 'utf8').replace(/\r\n/g, '\n');
+  const lines = source.split('\n');
+
+  if (!file.ranges) return lines;
+
+  const selected = [];
+  file.ranges.forEach(([start, end], index) => {
+    if (index > 0) {
+      selected.push('// ... bagian kode lain tidak ditampilkan ...');
+    }
+    selected.push(...lines.slice(start - 1, end));
+  });
+  return selected;
 }
 
-async function main() {
-  const basePath = "d:\\Apk_Skripsi";
-  const allChildren = [];
+function lineParagraphs(lines) {
+  return lines.map((line, index) => {
+    const number = `${index + 1}.`.padEnd(5, ' ');
+    const content = line.replace(/\t/g, '    ').replace(/\r/g, '') || ' ';
+    return new Paragraph({
+      children: [
+        new TextRun({ text: number, font: FONT, size: CODE_SIZE, color: '777777' }),
+        new TextRun({ text: content, font: FONT, size: CODE_SIZE, color: '000000' }),
+      ],
+      spacing: { before: 0, after: 0, line: 240 },
+    });
+  });
+}
 
-  // ===== HALAMAN JUDUL =====
-  allChildren.push(
-    new Paragraph({ spacing: { before: 2400 } }),
+function heading(text, size = 28, options = {}) {
+  return new Paragraph({
+    children: [new TextRun({ text, bold: true, font: FONT, size })],
+    spacing: { before: 240, after: 120 },
+    ...options,
+  });
+}
+
+function listingTitle(number, file) {
+  return new Paragraph({
+    children: [
+      new TextRun({ text: `${number}. ${file.label}`, bold: true, font: FONT, size: 26 }),
+    ],
+    spacing: { before: 220, after: 60 },
+    keepNext: true,
+  });
+}
+
+function pathLine(file) {
+  return new Paragraph({
+    children: [
+      new TextRun({ text: `Sumber: ${file.path}`, italics: true, font: FONT, size: 20, color: '666666' }),
+    ],
+    spacing: { after: 80 },
+    keepNext: true,
+  });
+}
+
+function buildContents() {
+  const children = [
+    new Paragraph({ spacing: { before: 900 } }),
     new Paragraph({
-      children: [new TextRun({ text: "LAMPIRAN", bold: true, size: 56, font: "Times New Roman" })],
+      children: [new TextRun({ text: 'LAMPIRAN', bold: true, font: FONT, size: 36 })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
+      spacing: { after: 120 },
     }),
     new Paragraph({
-      children: [new TextRun({ text: "LISTING PROGRAM", bold: true, size: 48, font: "Times New Roman" })],
+      children: [new TextRun({ text: 'LISTING PROGRAM', bold: true, font: FONT, size: 30 })],
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 100 },
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: 'Aplikasi AQUA JAPAN', italics: true, font: FONT, size: 24 })],
       alignment: AlignmentType.CENTER,
       spacing: { after: 600 },
     }),
     new Paragraph({
-      children: [new TextRun({ text: "Aplikasi AQUA JAPAN", size: 32, font: "Times New Roman", italics: true })],
+      children: [new TextRun({ text: 'DAFTAR LISTING KODE PROGRAM', bold: true, font: FONT, size: 26 })],
       alignment: AlignmentType.CENTER,
-      spacing: { after: 200 },
+      spacing: { after: 260 },
     }),
-    new Paragraph({
-      children: [new TextRun({ text: "Sistem Informasi Pemesanan dan Pengiriman Berbasis Mobile & Web", size: 24, font: "Times New Roman" })],
+  ];
+
+  let number = 1;
+  sections.forEach((section) => {
+    children.push(heading(section.title, 24));
+    section.files.forEach((file) => {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `${number}. ${file.label}`, font: FONT, size: 24 })],
+        spacing: { after: 50 },
+      }));
+      number += 1;
+    });
+  });
+
+  return children;
+}
+
+function buildCodeListings() {
+  const children = [
+    heading('LAMPIRAN KODE PROGRAM', 30, {
       alignment: AlignmentType.CENTER,
-      spacing: { after: 1200 },
-    })
-  );
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' } },
+      spacing: { before: 0, after: 220 },
+    }),
+  ];
 
-  // ===== DAFTAR ISI =====
-  allChildren.push(
-    new Paragraph({ children: [new PageBreak()] }),
-    new Paragraph({
-      children: [new TextRun({ text: "DAFTAR ISI LAMPIRAN KODE PROGRAM", bold: true, size: 28, font: "Times New Roman" })],
-      alignment: AlignmentType.CENTER,
-      spacing: { after: 400 },
-    })
-  );
+  let number = 1;
+  sections.forEach((section) => {
+    children.push(heading(section.title, 26));
+    section.files.forEach((file) => {
+      const lines = readListing(file);
+      children.push(listingTitle(number, file), pathLine(file), ...lineParagraphs(lines));
+      children.push(new Paragraph({ spacing: { after: 100 } }));
+      number += 1;
+    });
+  });
+  return children;
+}
 
-  let counter = 1;
-  for (const sec of sections) {
-    allChildren.push(
-      new Paragraph({
-        children: [new TextRun({ text: sec.title, bold: true, size: 22, font: "Times New Roman" })],
-        spacing: { before: 200, after: 100 },
-      })
-    );
-    for (const f of sec.files) {
-      allChildren.push(
-        new Paragraph({
-          children: [new TextRun({ text: "    " + counter + ". " + f.label, size: 22, font: "Times New Roman" })],
-          spacing: { after: 40 },
-        })
-      );
-      counter++;
-    }
-  }
-
-  // ===== KONTEN KODE =====
-  counter = 1;
-  for (const sec of sections) {
-    allChildren.push(
-      new Paragraph({ children: [new PageBreak()] }),
-      new Paragraph({
-        children: [new TextRun({ text: sec.title, bold: true, size: 32, font: "Times New Roman", color: "1a1a2e" })],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 400 },
-        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "1a1a2e" } },
-      })
-    );
-
-    for (const f of sec.files) {
-      const filePath = path.join(basePath, f.path);
-      let code = "";
-      try {
-        code = fs.readFileSync(filePath, "utf-8");
-      } catch (e) {
-        code = "// ERROR: File tidak ditemukan - " + filePath;
-        console.warn("File tidak ditemukan: " + filePath);
-      }
-
-      const lineCount = code.split("\n").length;
-
-      allChildren.push(
-        new Paragraph({
-          children: [new TextRun({ text: counter + ". " + f.label, bold: true, size: 24, font: "Times New Roman" })],
-          spacing: { before: 400, after: 60 },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: "Path: " + f.path, size: 18, font: "Consolas", color: "666666", italics: true })],
-          spacing: { after: 60 },
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: "Jumlah baris: " + lineCount, size: 18, font: "Consolas", color: "666666", italics: true })],
-          spacing: { after: 120 },
-        }),
-        new Paragraph({
-          border: { top: { style: BorderStyle.SINGLE, size: 1, color: "cccccc" } },
-          spacing: { after: 60 },
-        })
-      );
-
-      const codeParagraphs = createCodeParagraphs(code);
-      allChildren.push(...codeParagraphs);
-
-      allChildren.push(
-        new Paragraph({
-          border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: "cccccc" } },
-          spacing: { before: 60, after: 200 },
-        })
-      );
-      counter++;
-    }
-  }
-
-  // ===== BUAT DOKUMEN =====
+async function main() {
   const doc = new Document({
-    creator: "Lampiran Skripsi Generator",
-    title: "Lampiran Listing Program - AQUA JAPAN",
-    description: "Lampiran kode program inti untuk seminar hasil skripsi",
+    creator: 'Lampiran Skripsi Generator',
+    title: 'Lampiran Listing Program - AQUA JAPAN',
+    description: 'Listing kode program inti aplikasi AQUA JAPAN',
+    styles: {
+      default: {
+        document: {
+          run: { font: FONT, size: CODE_SIZE },
+          paragraph: { spacing: { after: 0, line: 240 } },
+        },
+      },
+    },
     sections: [
       {
+        properties: { page: { margin: MARGINS } },
+        children: buildContents(),
+      },
+      {
         properties: {
-          page: {
-            margin: { top: 1440, right: 1080, bottom: 1440, left: 1440 },
-          },
+          type: SectionType.NEXT_PAGE,
+          page: { margin: MARGINS },
+          column: { count: 2, equalWidth: true, space: 360, separate: false },
         },
-        children: allChildren,
+        children: buildCodeListings(),
       },
     ],
   });
 
   const buffer = await Packer.toBuffer(doc);
-  const outputPath = path.join(basePath, "Lampiran_Listing_Program.docx");
-  fs.writeFileSync(outputPath, buffer);
-
-  let totalLines = 0;
-  let totalFiles = 0;
-  for (const sec of sections) {
-    for (const f of sec.files) {
-      try {
-        const code = fs.readFileSync(path.join(basePath, f.path), "utf-8");
-        totalLines += code.split("\n").length;
-        totalFiles++;
-      } catch (e) {}
-    }
-  }
-
-  console.log("DONE");
-  console.log("File: " + outputPath);
-  console.log("Total file kode: " + totalFiles);
-  console.log("Total baris: " + totalLines);
-  console.log("Ukuran: " + (buffer.length / 1024 / 1024).toFixed(2) + " MB");
+  fs.writeFileSync(OUTPUT, buffer);
+  console.log('DONE');
+  console.log(`File: ${OUTPUT}`);
+  console.log(`Total listing: ${sections.reduce((sum, section) => sum + section.files.length, 0)}`);
+  console.log(`Ukuran: ${(buffer.length / 1024 / 1024).toFixed(2)} MB`);
 }
 
-main().catch(console.error);
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

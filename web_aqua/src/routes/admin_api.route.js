@@ -126,10 +126,10 @@ router.post('/api/v1/admin/orders/:id/approve', requireAuthApi, requireRole(['ad
 
         const currentData = cur.data();
         const curStatus = (currentData.status || '').toLowerCase();
-        const paymentStatus = (currentData.payment_status || '').toLowerCase();
 
-        if (curStatus !== 'pending') return res.status(400).json({ error: 'not_pending' });
-        if (paymentStatus !== 'settlement') return res.status(400).json({ error: 'not_paid' });
+        if (curStatus !== 'approved_sales') {
+            return res.status(400).json({ error: 'not_from_sales', message: 'Pesanan harus sudah dikonfirmasi sales' });
+        }
 
         const history = Array.isArray(currentData.history) ? currentData.history : [];
         history.push({

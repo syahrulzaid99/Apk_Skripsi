@@ -1,10 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiConfig {
-  // Default placeholder. Di Android fisik, .local tidak resolve — gunakan
-  // Settings > tempel URL localtunnel/ngrok (https://xxxx.loca.lt).
-  // Default di bawah hanya fallback; URL tersimpan di SharedPreferences lebih diutamakan.
-  static const String defaultBaseUrl = 'http://192.168.100.227:3000';
+
+  static const String defaultBaseUrl = 'http://172.28.64.1:3000';
   static const String _storageKey = 'api_base_url';
 
   static String? _cachedUrl;

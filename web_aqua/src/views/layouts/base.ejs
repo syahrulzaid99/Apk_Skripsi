@@ -2597,7 +2597,7 @@
                     <li class="oct-nav-item">
                         <a class="oct-nav-link <%= isActive('/admin/orders') ? 'active' : '' %>" href="/admin/orders">
                             <i class="fas fa-receipt"></i>
-                            <span>Pesanan Cabang</span>
+                            <span>Verifikasi Pesanan</span>
                         </a>
                     </li>
                     <li class="oct-nav-item">
@@ -2665,7 +2665,19 @@
                     <li class="oct-nav-item">
                         <a class="oct-nav-link <%= isActive('/sales/orders') ? 'active' : '' %>" href="/sales/orders">
                             <i class="fas fa-cart-plus"></i>
-                            <span>Buat Pesanan</span>
+                            <span>Pesanan Cabang</span>
+                        </a>
+                    </li>
+                    <li class="oct-nav-item">
+                        <a class="oct-nav-link <%= isActive('/sales/tracking') ? 'active' : '' %>" href="/sales/tracking">
+                            <i class="fas fa-truck-fast"></i>
+                            <span>Tracking Pengiriman</span>
+                        </a>
+                    </li>
+                    <li class="oct-nav-item">
+                        <a class="oct-nav-link <%= isActive('/sales/history') ? 'active' : '' %>" href="/sales/history">
+                            <i class="fas fa-clock-rotate-left"></i>
+                            <span>Riwayat Approval</span>
                         </a>
                     </li>
                     <li class="oct-nav-item">

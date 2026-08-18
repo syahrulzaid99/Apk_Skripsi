@@ -4,9 +4,9 @@ import '../../services/auth_service.dart';
 import '../auth/login_page.dart';
 import '../settings/settings_page.dart';
 import 'sales_dashboard_page.dart';
-import 'sales_create_order_page.dart';
 import 'sales_order_list_page.dart';
 import 'sales_report_page.dart';
+import 'sales_tracking_page.dart';
 
 class SalesHomePage extends StatefulWidget {
   const SalesHomePage({super.key});
@@ -30,11 +30,11 @@ class _SalesHomePageState extends State<SalesHomePage> {
       case 0:
         return 'Dashboard';
       case 1:
-        return 'Buat Order';
-      case 2:
         return 'Daftar Order';
-      case 3:
+      case 2:
         return 'Laporan';
+      case 3:
+        return 'Tracking Pengiriman';
       default:
         return 'Sales';
     }
@@ -45,9 +45,9 @@ class _SalesHomePageState extends State<SalesHomePage> {
     final cs = Theme.of(context).colorScheme;
     final pages = [
       const SalesDashboardPage(),
-      const SalesCreateOrderPage(),
       const SalesOrderListPage(),
       const SalesReportPage(),
+      const SalesTrackingPage(),
     ];
 
     return Scaffold(
@@ -115,9 +115,10 @@ class _SalesHomePageState extends State<SalesHomePage> {
               shadowColor: Colors.transparent,
               destinations: const [
                 NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-                NavigationDestination(icon: Icon(Icons.add_shopping_cart_outlined), selectedIcon: Icon(Icons.add_shopping_cart), label: 'Buat Order'),
+
                 NavigationDestination(icon: Icon(Icons.inbox_outlined), selectedIcon: Icon(Icons.inbox), label: 'Daftar'),
                 NavigationDestination(icon: Icon(Icons.assessment_outlined), selectedIcon: Icon(Icons.assessment), label: 'Laporan'),
+                NavigationDestination(icon: Icon(Icons.route_outlined), selectedIcon: Icon(Icons.route), label: 'Tracking'),
               ],
             ),
           ),

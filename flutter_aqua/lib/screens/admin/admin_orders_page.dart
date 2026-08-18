@@ -114,9 +114,9 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(children: [
-          for (final f in ['semua', 'pending', 'approved_admin', 'dipaket', 'dikirim', 'diterima'])
+          for (final f in ['semua', 'approved_sales', 'approved_admin', 'dipaket', 'dikirim', 'diterima'])
             Padding(padding: const EdgeInsets.only(right: 8), child: FilterChip(
-              label: Text(f == 'semua' ? 'Semua' : f[0].toUpperCase() + f.substring(1).replaceAll('_', ' ')),
+              label: Text(f == 'semua' ? 'Semua' : f == 'approved_sales' ? 'Dari Sales' : f[0].toUpperCase() + f.substring(1).replaceAll('_', ' ')),
               selected: _filterStatus == f,
               onSelected: (_) => setState(() => _filterStatus = f),
             )),
@@ -150,7 +150,7 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                       final o = _filtered[i];
                       final st = (o['status'] ?? '').toString().toLowerCase();
                       final paid = (o['payment_status'] ?? '').toString().toLowerCase() == 'settlement';
-                      final canApprove = st == 'pending' && paid;
+                      final canApprove = st == 'approved_sales';
                       final kota = (o['cabang_kota'] ?? '').toString();
 
                       return SmoothListItem(index: i, child: Card(margin: const EdgeInsets.only(bottom: 10), child: Padding(

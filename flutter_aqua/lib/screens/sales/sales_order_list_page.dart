@@ -211,10 +211,13 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
                             ]),
                             const SizedBox(height: 4),
                             Row(children: [
-                              Text(
-                                  'Cabang: ${_displayName(o)}',
-                                  style: TextStyle(
-                                      color: cs.outline, fontSize: 13)),
+                              Flexible(
+                                child: Text(
+                                    'Cabang: ${_displayName(o)}',
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                        color: cs.outline, fontSize: 13)),
+                              ),
                               const Spacer(),
                               Container(
                                 padding: const EdgeInsets.symmetric(

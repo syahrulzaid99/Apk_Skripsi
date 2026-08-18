@@ -42,8 +42,13 @@
         return c ? (c.username || o.cabang_id) : (o.cabang_id || '—');
     }
     // 'rejected' is a legacy value — it shares the ditolak palette
-    function pillOf(st) { return st === 'rejected' ? 'ditolak' : (st || 'pending'); }
+        function pillOf(st) {
+        if (st === 'rejected') return 'ditolak';
+        if (st === 'approved_sales') return 'approved_admin';
+        return st || 'pending';
+    }
     function bucketOf(st) {
+        if (st === 'approved_sales') return 'sales';
         if (st === 'pending') return 'pending';
         if (st === 'approved_admin' || st === 'dipaket' || st === 'dikirim') return 'proses';
         if (st === 'diterima' || st === 'selesai') return 'selesai';
@@ -52,7 +57,7 @@
     }
 
     var STATUS_LABEL = {
-        pending: 'Menunggu verifikasi', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
+        pending: 'Menunggu verifikasi', approved_sales: 'Disetujui sales', approved_admin: 'Diverifikasi', dipaket: 'Dikemas',
         dikirim: 'Dikirim', diterima: 'Diterima', selesai: 'Selesai',
         ditolak: 'Ditolak', rejected: 'Ditolak sales'
     };
@@ -65,21 +70,21 @@
     };
 
     // Lifecycle order used by the progress rail
-    var FLOW = ['pending', 'approved_admin', 'dipaket', 'dikirim', 'diterima'];
+    var FLOW = ['approved_sales', 'approved_admin', 'dipaket', 'dikirim', 'diterima'];
     var FLOW_LABEL = {
-        pending: 'Pesanan masuk', approved_admin: 'Diverifikasi admin', dipaket: 'Dikemas gudang',
+        approved_sales: 'Disetujui sales', approved_admin: 'Diverifikasi admin', dipaket: 'Dikemas gudang',
         dikirim: 'Dalam pengiriman', diterima: 'Diterima cabang'
     };
 
     // Summary figures
     var totalOrders = list.length;
-    var nPending = 0, nSiap = 0, nProses = 0, nSelesai = 0, nTolak = 0, nilaiTotal = 0;
+    var nSiap = 0, nProses = 0, nSelesai = 0, nTolak = 0, nilaiTotal = 0;
     for (var k = 0; k < list.length; k++) {
         var stk = String(list[k].status || 'pending').toLowerCase();
         var payk = String(list[k].payment_status || '').toLowerCase();
         var bk = bucketOf(stk);
         nilaiTotal += totalOf(list[k]);
-        if (bk === 'pending') { nPending++; if (payk === 'settlement') nSiap++; }
+        if (bk === 'sales') nSiap++;
         else if (bk === 'proses') nProses++;
         else if (bk === 'selesai') nSelesai++;
         else if (bk === 'ditolak') nTolak++;
@@ -88,7 +93,7 @@
     // Segmented filter buckets
     var buckets = [
         { key: 'all', label: 'Semua', n: totalOrders },
-        { key: 'pending', label: 'Menunggu', n: nPending },
+        { key: 'sales', label: 'Dari sales', n: nSiap },
         { key: 'proses', label: 'Diproses', n: nProses },
         { key: 'selesai', label: 'Selesai', n: nSelesai },
         { key: 'ditolak', label: 'Ditolak', n: nTolak }
@@ -273,7 +278,7 @@
 <div class="oct-page-head">
     <div>
         <h1 class="oct-page-title">Pesanan cabang</h1>
-        <p class="oct-page-sub">Verifikasi pesanan yang sudah dibayar cabang, lalu teruskan ke gudang untuk dikemas dan dikirim.</p>
+        <p class="oct-page-sub">Verifikasi pesanan yang sudah dikonfirmasi sales, lalu teruskan ke gudang untuk dikemas dan dikirim.</p>
     </div>
     <% if (nSiap > 0) { %>
     <div class="oct-page-actions">
@@ -318,7 +323,7 @@
                         <span class="oct-kpi-note">tidak ada antrean</span>
                     <% } %>
                 </div>
-                <div class="oct-kpi-foot"><%= Math.max(nPending - nSiap, 0) %> pesanan masih menunggu pembayaran</div>
+                <div class="oct-kpi-foot">pesanan dari sales menunggu verifikasi pengiriman</div>
             </div>
             <div class="oct-kpi oct-rise">
                 <div class="oct-kpi-head">
@@ -589,6 +594,12 @@
                                 <span><strong>Catatan cabang:</strong> <%= od.keterangan %></span>
                             </div>
                         <% } %>
+                        <% if (od.keterangan_sales) { %>
+                            <div class="oct-note">
+                                <i class="fas fa-user-check"></i>
+                                <span><strong>Catatan sales:</strong> <%= od.keterangan_sales %></span>
+                            </div>
+                        <% } %>
                         <% if (od.keterangan_admin) { %>
                             <div class="oct-note oct-note-accent">
                                 <i class="fas fa-comment-dots"></i>
@@ -619,7 +630,7 @@
                             <div class="alert alert-primary mb-0">
                                 <strong>Sudah diverifikasi.</strong> Menunggu gudang mengemas pesanan.
                             </div>
-                        <% } else if (sd === 'pending' && payD === 'settlement') { %>
+                        <% } else if (sd === 'approved_sales') { %>
                             <form method="POST" action="/admin/orders/<%= od.id %>" data-confirm-verify data-kode="<%= od.kode_order || '' %>">
                                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                 <input type="hidden" name="status" value="approved_admin">
@@ -636,7 +647,7 @@
                             </form>
                         <% } else if (sd === 'pending') { %>
                             <div class="alert alert-warning mb-0">
-                                <strong>Menunggu pembayaran.</strong> Pesanan belum bisa diverifikasi sebelum status pembayaran lunas.
+                                <strong>Menunggu konfirmasi sales.</strong> Pesanan yang belum dikonfirmasi sales tidak tampil di halaman ini.
                             </div>
                         <% } else if (sd === 'rejected') { %>
                             <div class="alert alert-danger mb-0">

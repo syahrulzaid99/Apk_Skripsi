@@ -5,7 +5,11 @@ import '../../widgets/shared.dart';
 import '../../widgets/smooth_list_item.dart';
 
 class SalesReportPage extends StatefulWidget {
-  const SalesReportPage({super.key});
+  const SalesReportPage({super.key, this.initialReport});
+
+  /// Data laporan awal (untuk widget test / preview). Saat diisi, halaman
+  /// tidak melakukan fetch dari server.
+  final Map<String, dynamic>? initialReport;
 
   @override
   State<SalesReportPage> createState() => _SalesReportPageState();
@@ -21,7 +25,22 @@ class _SalesReportPageState extends State<SalesReportPage> {
   @override
   void initState() {
     super.initState();
-    _fetch();
+    final inj = widget.initialReport;
+    if (inj != null) {
+      _summary = inj['summary'] as Map<String, dynamic>? ?? {};
+      _monthly = (inj['monthly'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _branches = (inj['branches'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _recentOrders = (inj['recentOrders'] as List? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      _loading = false;
+    } else {
+      _fetch();
+    }
   }
 
   void _snack(String msg) {
@@ -207,20 +226,26 @@ class _SalesReportPageState extends State<SalesReportPage> {
         children: [
           Icon(icon, size: 20, color: cs.primary),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: cs.outline,
-                      fontWeight: FontWeight.w500)),
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: cs.onSurface)),
-            ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: cs.outline,
+                        fontWeight: FontWeight.w500)),
+                Text(value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface)),
+              ],
+            ),
           ),
         ],
       ),
@@ -232,9 +257,13 @@ class _SalesReportPageState extends State<SalesReportPage> {
       children: [
         Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 6),
-        Text(text,
-            style:
-                const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+        Flexible(
+          child: Text(text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, fontSize: 15)),
+        ),
       ],
     );
   }
@@ -259,30 +288,47 @@ class _SalesReportPageState extends State<SalesReportPage> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: _monthly.map((m) {
                 final total = toInt(m['total']);
-                final h = maxVal > 0 ? (total / maxVal) * 100 : 0.0;
+                final ratio = maxVal > 0 ? (total / maxVal) : 0.0;
+                var hFactor = ratio;
+                if (hFactor <= 0) {
+                  hFactor = 0.0;
+                } else if (hFactor < 0.05) {
+                  hFactor = 0.05;
+                } else if (hFactor > 1.0) {
+                  hFactor = 1.0;
+                }
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         if (total > 0)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Text(
                               _compactCurrency(total),
+                              maxLines: 1,
                               style: TextStyle(
                                   fontSize: 8,
                                   fontWeight: FontWeight.w600,
                                   color: cs.outline),
                             ),
                           ),
-                        Container(
-                          height: h < 4 ? 4 : h,
-                          decoration: BoxDecoration(
-                            color: cs.primary.withOpacity(0.8),
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(6)),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: FractionallySizedBox(
+                              heightFactor: hFactor,
+                              widthFactor: 1,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: cs.primary
+                                      .withValues(alpha: 0.8),
+                                  borderRadius: const BorderRadius.vertical(
+                                      top: Radius.circular(6)),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -399,12 +445,16 @@ class _SalesReportPageState extends State<SalesReportPage> {
               children: [
                 Row(
                   children: [
-                    Text(o['kode_order'] ?? '-',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                            color: cs.onSurface)),
-                    const Spacer(),
+                    Flexible(
+                      child: Text(o['kode_order'] ?? '-',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              color: cs.onSurface)),
+                    ),
+                    const SizedBox(width: 8),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 2),
@@ -430,11 +480,16 @@ class _SalesReportPageState extends State<SalesReportPage> {
             ),
           ),
           const SizedBox(width: 8),
-          Text(formatCurrency(toInt(o['total_harga'])),
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: cs.primary)),
+          Flexible(
+            child: Text(formatCurrency(toInt(o['total_harga'])),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: cs.primary)),
+          ),
         ],
       ),
     );
@@ -508,23 +563,31 @@ class _SalesReportPageState extends State<SalesReportPage> {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(formatCurrency(toInt(b['totalPendapatan'])),
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Colors.green.shade700)),
-                    Text(
-                        '${b['totalOrders'] ?? 0} pesanan · ${b['totalItem'] ?? 0} item',
-                        style: TextStyle(fontSize: 11, color: cs.outline)),
-                  ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(formatCurrency(toInt(b['totalPendapatan'])),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                              color: Colors.green.shade700)),
+                      Text(
+                          '${b['totalOrders'] ?? 0} pesanan · ${b['totalItem'] ?? 0} item',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: cs.outline)),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          // Mini chart
+          // Mini chart — tinggi bar proporsional terhadap area yang tersisa
+          // (FractionallySizedBox di dalam Expanded) supaya tidak pernah
+          // overflow, termasuk saat skala font sistem diperbesar.
           if (monthly.isNotEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -534,19 +597,34 @@ class _SalesReportPageState extends State<SalesReportPage> {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: monthly.map((m) {
                     final total = toInt(m['total']);
-                    final h = maxVal > 0 ? (total / maxVal) * 44 : 0.0;
+                    final ratio = maxVal > 0 ? (total / maxVal) : 0.0;
+                    var hFactor = ratio;
+                    if (hFactor <= 0) {
+                      hFactor = 0.0;
+                    } else if (hFactor < 0.07) {
+                      hFactor = 0.07;
+                    } else if (hFactor > 1.0) {
+                      hFactor = 1.0;
+                    }
                     return Expanded(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 2),
                         child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
                           children: [
-                            Container(
-                              height: h < 3 ? 3 : h,
-                              decoration: BoxDecoration(
-                                color: color.withOpacity(0.7),
-                                borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(4)),
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: FractionallySizedBox(
+                                  heightFactor: hFactor,
+                                  widthFactor: 1,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.7),
+                                      borderRadius: const BorderRadius.vertical(
+                                          top: Radius.circular(4)),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -555,6 +633,7 @@ class _SalesReportPageState extends State<SalesReportPage> {
                                     .toString()
                                     .split(' ')
                                     .first,
+                                maxLines: 1,
                                 style: TextStyle(
                                     fontSize: 7, color: cs.outline),
                                 overflow: TextOverflow.ellipsis),

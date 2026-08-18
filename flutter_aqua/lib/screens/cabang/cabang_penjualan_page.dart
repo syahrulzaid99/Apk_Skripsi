@@ -225,8 +225,14 @@ class _SalesHistoryTabState extends State<_SalesHistoryTab> with AutomaticKeepAl
             return Card(margin: const EdgeInsets.only(bottom: 8), child: Padding(
               padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Text(s['kode_penjualan'] ?? '-', style: TextStyle(fontWeight: FontWeight.bold, color: cs.primary)),
-                  const Spacer(),
+                  Flexible(
+                    child: Text(s['kode_penjualan'] ?? '-',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: cs.primary)),
+                  ),
+                  const SizedBox(width: 8),
                   Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(12)),
                     child: const Text('SELESAI', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green))),

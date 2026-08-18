@@ -69,7 +69,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             snap.docs.forEach(d => {
                 const st = (d.data().status || '').toLowerCase();
                 if (st === 'pending') salesStats.pending++;
-                if (st === 'approved_admin' || st === 'dipaket' || st === 'dikirim') salesStats.approved++;
+                if (st === 'approved_sales' || st === 'approved_admin' || st === 'dipaket' || st === 'dikirim') salesStats.approved++;
                 if (st === 'diterima' || st === 'selesai') salesStats.rejected++; // reuse field for completed
             });
         } else if (role === 'gudang') {

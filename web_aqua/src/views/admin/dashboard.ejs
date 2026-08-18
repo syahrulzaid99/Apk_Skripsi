@@ -89,7 +89,7 @@
         ];
     } else if (role === 'sales') {
         headActions = [
-            { href: '/sales/orders', icon: 'fa-cart-plus', label: 'Buat pesanan', primary: true },
+            { href: '/sales/orders', icon: 'fa-receipt', label: 'Pesanan cabang', primary: true },
             { href: '/sales/report', icon: 'fa-chart-simple', label: 'Laporan penjualan', primary: false }
         ];
     } else if (role === 'gudang') {
@@ -131,7 +131,8 @@
             { label: 'Selesai', sub: fmtNum(sSelesai) + ' pesanan', pct: share(sSelesai, sTotal), tone: 2 }
         ];
         shortcuts = [
-            { href: '/sales/orders', icon: 'fa-cart-plus', title: 'Buat pesanan', sub: 'Ajukan pesanan baru ke pusat' },
+            { href: '/sales/orders', icon: 'fa-receipt', title: 'Pesanan cabang', sub: 'Konfirmasi pesanan masuk dari cabang' },
+            { href: '/sales/history', icon: 'fa-clock-rotate-left', title: 'Riwayat approval', sub: 'Rekap keputusan pesanan yang telah diproses' },
             { href: '/sales/report', icon: 'fa-chart-simple', title: 'Laporan penjualan', sub: 'Rekap penjualan Anda' }
         ];
     } else if (role === 'gudang') {

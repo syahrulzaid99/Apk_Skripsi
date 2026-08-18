@@ -230,6 +230,14 @@ class ApiClient {
         .timeout(_timeout);
   }
 
+  /// Sales: data tracking pengiriman (progres, resi, timeline per pesanan)
+  static Future<http.Response> getSalesTracking() async {
+    final headers = await _authHeaders();
+    return http
+        .get(ApiConfig.uri('/api/v1/sales/tracking'), headers: headers)
+        .timeout(_timeout);
+  }
+
   /// Sales: daftar akun cabang untuk dipilih sebagai tujuan order.
   static Future<http.Response> getCabangAccounts() async {
     final headers = await _authHeaders();
@@ -259,7 +267,6 @@ class ApiClient {
         .timeout(_timeout);
   }
 
-
   /// Sales: ambil daftar akun cabang untuk dropdown tujuan order
   static Future<http.Response> getSalesCabangs() async {
     final headers = await _authHeaders();
@@ -267,7 +274,6 @@ class ApiClient {
         .get(ApiConfig.uri('/api/v1/sales/cabangs'), headers: headers)
         .timeout(_timeout);
   }
-
   /// Sales: bayar / retry payment order
   static Future<http.Response> salesPayOrder(String id) async {
     final headers = await _authHeaders();

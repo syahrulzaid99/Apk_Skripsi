@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { csrfProtection } = require('../middleware/csrf');
-const { randomUUID } = require('crypto');
 const admin = require('firebase-admin');
 
 const { db } = require('../firebaseAdmin');
 const { requireAuth, requireRole, requireAuthApi } = require('../middleware/auth');
-const { generateSequentialCode } = require('../utils/generateCode');
 const { snap } = require('../midtransClient');
 
 router.use(express.urlencoded({ extended: false }));
@@ -37,10 +35,6 @@ router.get('/sales/orders', requireAuth, requireRole(['sales']), csrfProtection,
         const cabangUsers = await db.collection('users').where('role', '==', 'cabang').get();
         const cabangList = cabangUsers.docs.map(d => ({ id: d.id, username: d.data().username || d.id }));
 
-        // Get products for order form
-        const prodSnap = await db.collection('products').orderBy('sku').get();
-        const products = prodSnap.docs.map(d => d.data());
-
         res.render('sales/orders', {
             title: 'Pesanan',
             csrfToken: req.csrfToken(),
@@ -49,7 +43,6 @@ router.get('/sales/orders', requireAuth, requireRole(['sales']), csrfProtection,
             orders: allOrders,
             usersMap,
             cabangList,
-            products,
             ok: req.query.ok || null,
             err: req.query.err || null,
         });
@@ -65,169 +58,203 @@ router.get('/sales/orders', requireAuth, requireRole(['sales']), csrfProtection,
             orders: [],
             usersMap: {},
             cabangList,
-            products: [],
             ok: req.query.ok || null,
             err: "Gagal memuat daftar pesanan.",
         });
     }
 });
 
-// ====================== SALES: CREATE ORDER (sama seperti cabang) ======================
-router.post('/sales/orders', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
+// ====================== SALES: APPROVE ORDER (konfirmasi ke admin) ======================
+router.post('/sales/orders/:id/approve', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
     try {
-        const { keterangan, data_barang_json, cabang_id } = req.body;
+        const id = req.params.id;
+        const ref = db.collection('orders').doc(id);
+        const cur = await ref.get();
 
-        if (!data_barang_json) {
-            return res.redirect('/sales/orders?err=' + encodeURIComponent('Data barang tidak valid'));
+        if (!cur.exists) {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pesanan tidak ditemukan'));
         }
 
-        let items;
-        try {
-            items = JSON.parse(data_barang_json);
-        } catch (e) {
-            return res.redirect('/sales/orders?err=' + encodeURIComponent('Format data barang salah'));
+        const currentData = cur.data();
+        const curStatus = (currentData.status || '').toLowerCase();
+        const paymentStatus = (currentData.payment_status || '').toLowerCase();
+
+        if (curStatus !== 'pending') {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pesanan harus berstatus menunggu'));
+        }
+        if (paymentStatus !== 'settlement' && paymentStatus !== 'capture') {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pesanan belum dibayar oleh cabang'));
         }
 
-        if (!Array.isArray(items) || items.length === 0) {
-            return res.redirect('/sales/orders?err=' + encodeURIComponent('Minimal pilih 1 produk'));
-        }
+        const keterangan = typeof req.body.keterangan === 'string' ? req.body.keterangan.trim() : '';
 
-        for (const it of items) {
-            if (!it.product_id || !it.qty || it.qty <= 0) {
-                return res.redirect('/sales/orders?err=' + encodeURIComponent('Kuantitas item harus lebih dari 0'));
-            }
-        }
-
-        // Target cabang — wajib diisi oleh sales
-        const targetCabangId = (cabang_id || '').trim();
-        if (!targetCabangId) {
-            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pilih cabang tujuan'));
-        }
-
-        // enrich items with product data
-        const prodSnap = await db.collection('products').get();
-        const productsById = {};
-        for (const d of prodSnap.docs) {
-            const p = d.data();
-            if (p && p.id) productsById[String(p.id)] = p;
-        }
-
-        let total_harga = 0;
-        const enrichedItems = items.map(it => {
-            const p = productsById[it.product_id] || {};
-            const qty = Number(it.qty);
-            const harga = p.harga_jual || 0;
-            total_harga += qty * harga;
-            return {
-                product_id: it.product_id,
-                nama_produk: p.nama_produk || '-',
-                sku: p.sku || '',
-                barcode: p.barcode || '',
-                satuan: p.satuan || '',
-                qty,
-                harga,
-                subtotal: qty * harga,
-                gambar_url: p.gambar_url || ''
-            };
+        const history = Array.isArray(currentData.history) ? currentData.history : [];
+        history.push({
+            status: 'approved_sales',
+            by: req.user.uid,
+            by_username: req.user.username,
+            at: new Date(),
+            note: keterangan,
         });
 
-        // Ambil data user cabang untuk username
-        const cabangDoc = await db.collection('users').doc(targetCabangId).get();
-        const cabangUsername = cabangDoc.exists ? (cabangDoc.data().username || targetCabangId) : targetCabangId;
+        await ref.update({
+            status: 'approved_sales',
+            approved_sales_at: new Date(),
+            approved_sales_by: req.user.uid,
+            keterangan_sales: keterangan,
+            history,
+            updatedAt: new Date()
+        });
 
-        const kode_order = await generateSequentialCode('orders', 'PO', 'kode_order');
+        console.log(`[Sales] Order ${currentData.kode_order || id} dikonfirmasi oleh ${req.user.username} -> menunggu verifikasi admin`);
+        return res.redirect('/sales/orders?ok=approved');
+    } catch (e) {
+        console.error(e);
+        return res.redirect('/sales/orders?err=' + encodeURIComponent('Gagal konfirmasi pesanan'));
+    }
+});
 
-        const id = randomUUID();
-        const doc = {
-            id,
-            kode_order,
-            cabang_id: targetCabangId,
-            cabang_username: cabangUsername,
-            created_by: req.user.uid,
-            created_by_role: 'sales',
-            created_by_username: req.user.username,
-            items: enrichedItems,
-            total_harga,
-            keterangan: String(keterangan || '').trim(),
-            status: 'pending',
-            payment_status: 'pending',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+// ====================== SALES: REJECT ORDER ======================
+router.post('/sales/orders/:id/reject', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const ref = db.collection('orders').doc(id);
+        const cur = await ref.get();
 
-        // Generate Midtrans Snap Token
-        const midtrans_order_id = `${kode_order}-${Date.now()}`;
-        try {
-            const parameter = {
-                transaction_details: {
-                    order_id: midtrans_order_id,
-                    gross_amount: Math.round(total_harga),
-                },
-                customer_details: {
-                    first_name: cabangUsername,
-                },
-                enabled_payments: [
-                    'credit_card', 'bca_va', 'bni_va', 'bri_va', 'permata_va',
-                    'mandiri_bill', 'gopay', 'shopeepay', 'other_qris',
-                    'alfamart', 'indomaret',
-                ],
-            };
-            console.log('[Midtrans] Sales creating transaction:', midtrans_order_id, 'amount:', Math.round(total_harga));
-            const transaction = await snap.createTransaction(parameter);
-            doc.snap_token = transaction.token;
-            doc.payment_url = transaction.redirect_url;
-            doc.midtrans_order_id = midtrans_order_id;
-            doc.payment_status = 'pending';
-            console.log('[Midtrans] token ok:', doc.payment_url);
-        } catch (midtransError) {
-            const msgs = midtransError?.ApiResponse?.error_messages || midtransError?.message || midtransError;
-            console.error('[Midtrans] GAGAL buat token:', JSON.stringify(msgs));
-            doc.payment_status = 'failed_to_generate';
+        if (!cur.exists) {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pesanan tidak ditemukan'));
         }
 
-        await db.collection('orders').doc(id).set(doc);
+        const currentData = cur.data();
+        if ((currentData.status || '').toLowerCase() !== 'pending') {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Pesanan harus berstatus menunggu'));
+        }
 
-        // Deduct inventory stock
+        const alasan = typeof req.body.alasan === 'string' ? req.body.alasan.trim() : '';
+        if (!alasan) {
+            return res.redirect('/sales/orders?err=' + encodeURIComponent('Alasan penolakan wajib diisi'));
+        }
+
+        const history = Array.isArray(currentData.history) ? currentData.history : [];
+        history.push({
+            status: 'rejected',
+            by: req.user.uid,
+            by_username: req.user.username,
+            at: new Date(),
+            note: alasan,
+        });
+
+        await ref.update({
+            status: 'rejected',
+            rejected_at: new Date(),
+            rejected_by: req.user.uid,
+            rejection_reason: alasan,
+            history,
+            updatedAt: new Date()
+        });
+
+        // Kembalikan stok pusat karena pesanan dibatalkan
+        const items = Array.isArray(currentData.items) ? currentData.items : [];
         const batch = db.batch();
         let hasOp = false;
-        for (const item of enrichedItems) {
-            if (item.product_id && item.qty > 0) {
+        for (const item of items) {
+            const qty = Number(item.qty || 0);
+            if (item.product_id && qty > 0) {
                 batch.update(db.collection('products').doc(item.product_id), {
-                    stok: admin.firestore.FieldValue.increment(-item.qty),
+                    stok: admin.firestore.FieldValue.increment(qty),
                     updatedAt: new Date()
                 });
                 hasOp = true;
             }
         }
-        if (hasOp) await batch.commit().catch(e => console.error('Failed to deduct stock for order:', e));
+        if (hasOp) await batch.commit().catch(e => console.error('Failed to restore stock on reject:', e));
 
-        return res.redirect('/sales/orders?ok=created');
+        console.log(`[Sales] Order ${currentData.kode_order || id} ditolak oleh ${req.user.username}`);
+        return res.redirect('/sales/orders?ok=rejected');
     } catch (e) {
-        console.error('❌ Sales create order error:', e);
-        return res.redirect('/sales/orders?err=' + encodeURIComponent('Gagal membuat pesanan'));
+        console.error(e);
+        return res.redirect('/sales/orders?err=' + encodeURIComponent('Gagal menolak pesanan'));
     }
 });
 
-// ====================== SALES: LIST CABANG ACCOUNTS (untuk pilih tujuan order) ======================
-router.get('/api/v1/sales/cabangs', requireAuthApi, requireRole(['sales']), async (req, res) => {
+// ====================== SALES: HISTORY APPROVAL (WEB) ======================
+router.get('/sales/history', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
     try {
-        const snap = await db.collection('users').where('role', '==', 'cabang').get();
-        const cabangs = snap.docs.map(d => {
-            const u = d.data();
-            return {
-                id: d.id,
-                username: u.username || d.id,
-                nama_cabang: u.nama_cabang || '',
-                provinsi: u.provinsi || '',
-                kota: u.kota || '',
-                jalan: u.jalan || '',
-            };
+        const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
+        const all = snap.docs.map(d => d.data());
+
+        // Keputusan yang diambil sales yang sedang login.
+        // Diputuskan lewat field SIAPA yang mengambil keputusan (bukan status saat ini),
+        // karena setelah disetujui status bisa lanjut ke approved_admin/dipaket/dikirim/diterima
+        // atau diubah admin menjadi ditolak — riwayat sales harus tetap mencatat keputusannya.
+        const orders = all.filter(o => {
+            if (o.approved_sales_by === req.user.uid) return true;
+            if (o.rejected_by === req.user.uid) return true;
+            return false;
         });
-        cabangs.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
-        return res.json({ cabangs });
+
+        const cabangIds = [...new Set(orders.map(o => o.cabang_id).filter(Boolean))];
+        const usersMap = await getUsersMapByIds(cabangIds);
+
+        res.render('sales/history', {
+            title: 'Riwayat Approval',
+            csrfToken: req.csrfToken(),
+            user: req.user,
+            profile: req.profile,
+            orders,
+            usersMap,
+        });
     } catch (e) {
-        console.error('[Sales] Gagal memuat daftar cabang:', e);
-        return res.status(500).json({ error: 'server_error' });
+        console.error('[Sales] History error:', e);
+        res.render('sales/history', {
+            title: 'Riwayat Approval',
+            csrfToken: req.csrfToken(),
+            user: req.user,
+            profile: req.profile,
+            orders: [],
+            usersMap: {},
+        });
+    }
+});
+
+// ====================== SALES: TRACKING PENGIRIMAN (WEB) ======================
+router.get('/sales/tracking', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
+    try {
+        const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
+        const all = snap.docs.map(d => d.data());
+
+        // Map shipment untuk info resi & waktu diterima
+        const shipmentIds = [...new Set(all.map(o => o.shipment_id).filter(Boolean))];
+        const shipMap = {};
+        for (let i = 0; i < shipmentIds.length; i += 10) {
+            const chunk = shipmentIds.slice(i, i + 10);
+            const snaps = await Promise.all(chunk.map(id => db.collection('shipments').doc(id).get()));
+            for (const s of snaps) if (s.exists) shipMap[s.id] = s.data();
+        }
+
+        const cabangIds = [...new Set(all.map(o => o.cabang_id).filter(Boolean))];
+        const usersMap = await getUsersMapByIds(cabangIds);
+
+        res.render('sales/tracking', {
+            title: 'Tracking Pengiriman',
+            csrfToken: req.csrfToken(),
+            user: req.user,
+            profile: req.profile,
+            orders: all,
+            usersMap,
+            shipMap,
+        });
+    } catch (e) {
+        console.error('[Sales] Tracking error:', e);
+        res.render('sales/tracking', {
+            title: 'Tracking Pengiriman',
+            csrfToken: req.csrfToken(),
+            user: req.user,
+            profile: req.profile,
+            orders: [],
+            usersMap: {},
+            shipMap: {},
+        });
     }
 });
 
@@ -265,133 +292,65 @@ router.get('/api/v1/sales/orders', requireAuthApi, requireRole(['sales']), async
     }
 });
 
-// POST create order via API (sama seperti cabang, tapi untuk sales + wajib pilih cabang)
-router.post('/api/v1/sales/orders', requireAuthApi, requireRole(['sales']), express.json(), async (req, res) => {
+// ====================== SALES: TRACKING PENGIRIMAN (API Flutter) ======================
+router.get('/api/v1/sales/tracking', requireAuthApi, requireRole(['sales']), async (req, res) => {
     try {
-        const { items, keterangan, cabang_id } = req.body || {};
+        const snap = await db.collection('orders').orderBy('createdAt', 'desc').get();
+        const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        if (!Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'items_required' });
+        // Map shipment untuk resi & waktu diterima
+        const shipmentIds = [...new Set(all.map(o => o.shipment_id).filter(Boolean))];
+        const shipMap = {};
+        for (let i = 0; i < shipmentIds.length; i += 10) {
+            const chunk = shipmentIds.slice(i, i + 10);
+            const snaps = await Promise.all(chunk.map(id => db.collection('shipments').doc(id).get()));
+            for (const s of snaps) if (s.exists) shipMap[s.id] = s.data();
         }
 
-        for (const it of items) {
-            if (!it.product_id || !it.qty || it.qty <= 0) {
-                return res.status(400).json({ error: 'invalid_item', detail: 'Setiap item harus punya product_id dan qty > 0' });
-            }
-        }
+        const cabangIds = [...new Set(all.map(o => o.cabang_id).filter(Boolean))];
+        const usersMap = await getUsersMapByIds(cabangIds);
 
-        const targetCabangId = (cabang_id || '').trim();
-        if (!targetCabangId) {
-            return res.status(400).json({ error: 'cabang_required', message: 'Sales wajib memilih cabang tujuan' });
-        }
-
-        // enrich items with product data
-        const prodSnap = await db.collection('products').get();
-        const productsById = {};
-        for (const d of prodSnap.docs) {
-            const p = d.data();
-            if (p?.id) productsById[String(p.id)] = p;
-        }
-
-        let total_harga = 0;
-        const enrichedItems = items.map(it => {
-            const p = productsById[it.product_id] || {};
-            const qty = Number(it.qty);
-            const harga = p.harga_jual || 0;
-            total_harga += qty * harga;
+        const result = all.map(o => {
+            const items = Array.isArray(o.items) ? o.items : [];
             return {
-                product_id: it.product_id,
-                nama_produk: p.nama_produk || '-',
-                sku: p.sku || '',
-                barcode: p.barcode || '',
-                satuan: p.satuan || '',
-                qty,
-                harga,
-                subtotal: qty * harga,
+                id: o.id,
+                kode_order: o.kode_order,
+                cabang_id: o.cabang_id,
+                cabang_username: o.cabang_username || usersMap[o.cabang_id]?.username || o.cabang_id,
+                cabang_nama: usersMap[o.cabang_id]?.nama_cabang || '',
+                status: o.status || 'pending',
+                payment_status: o.payment_status || 'pending',
+                total_harga: o.total_harga || 0,
+                jumlah_item: items.length,
+                items: items.map(it => ({
+                    nama_produk: it.nama_produk || it.nama || it.product_name || 'Produk',
+                    qty: Number(it.qty || 0),
+                    harga: it.harga || it.price || 0,
+                })),
+                keterangan_sales: o.keterangan_sales || '',
+                rejection_reason: o.rejection_reason || '',
+                kode_pengiriman: o.kode_pengiriman || '',
+                shipment_id: o.shipment_id || '',
+                createdAt: o.createdAt || null,
+                approved_sales_at: o.approved_sales_at || null,
+                approved_admin_at: o.approved_admin_at || null,
+                packed_at: o.packed_at || null,
+                rejected_at: o.rejected_at || null,
+                dikirim_at: shipMap[o.shipment_id]?.createdAt || null,
+                diterima_at: shipMap[o.shipment_id]?.diterima_at || null,
+                diterima_oleh: shipMap[o.shipment_id]?.diterima_oleh || '',
+                history: (Array.isArray(o.history) ? o.history : []).map(h => ({
+                    status: h.status || '',
+                    by_username: h.by_username || h.by || '',
+                    at: h.at || null,
+                    note: h.note || '',
+                })),
             };
         });
 
-        // Stock validation
-        for (const it of enrichedItems) {
-            const p = productsById[it.product_id] || {};
-            const currentStock = p.stok || 0;
-            if (currentStock < it.qty) {
-                return res.status(400).json({
-                    error: 'insufficient_stock',
-                    message: `Stok produk "${it.nama_produk}" tidak mencukupi (Tersisa: ${currentStock})`
-                });
-            }
-        }
-
-        const cabangDoc = await db.collection('users').doc(targetCabangId).get();
-        const cabangUsername = cabangDoc.exists ? (cabangDoc.data().username || targetCabangId) : targetCabangId;
-
-        const kode_order = await generateSequentialCode('orders', 'PO', 'kode_order');
-        const id = randomUUID();
-        const doc = {
-            id,
-            kode_order,
-            cabang_id: targetCabangId,
-            cabang_username: cabangUsername,
-            created_by: req.user.uid,
-            created_by_role: 'sales',
-            created_by_username: req.user.username,
-            items: enrichedItems,
-            total_harga,
-            keterangan: String(keterangan || '').trim(),
-            status: 'pending',
-            payment_status: 'pending',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-
-        // Generate Midtrans Snap Token
-        const midtrans_order_id = `${kode_order}-${Date.now()}`;
-        try {
-            const parameter = {
-                transaction_details: {
-                    order_id: midtrans_order_id,
-                    gross_amount: Math.round(total_harga),
-                },
-                customer_details: {
-                    first_name: cabangUsername,
-                },
-                enabled_payments: [
-                    'credit_card', 'bca_va', 'bni_va', 'bri_va', 'permata_va',
-                    'mandiri_bill', 'gopay', 'shopeepay', 'other_qris',
-                    'alfamart', 'indomaret',
-                ],
-            };
-            console.log('[Midtrans] Sales API creating transaction:', midtrans_order_id);
-            const transaction = await snap.createTransaction(parameter);
-            doc.snap_token = transaction.token;
-            doc.payment_url = transaction.redirect_url;
-            doc.midtrans_order_id = midtrans_order_id;
-            console.log('[Midtrans] token ok:', doc.payment_url);
-        } catch (midtransError) {
-            console.error('[Midtrans] GAGAL buat token:', midtransError?.message || midtransError);
-            doc.payment_status = 'failed_to_generate';
-        }
-
-        await db.collection('orders').doc(id).set(doc);
-
-        // Deduct stock
-        const batch = db.batch();
-        let hasOp = false;
-        for (const item of enrichedItems) {
-            if (item.product_id && item.qty > 0) {
-                batch.update(db.collection('products').doc(item.product_id), {
-                    stok: admin.firestore.FieldValue.increment(-item.qty),
-                    updatedAt: new Date()
-                });
-                hasOp = true;
-            }
-        }
-        if (hasOp) await batch.commit().catch(e => console.error('Failed to deduct stock:', e));
-
-        return res.json({ ok: true, kode_order, id, payment_url: doc.payment_url });
+        return res.json({ orders: result });
     } catch (e) {
-        console.error('❌ Sales API create order error:', e);
+        console.error('[Sales] Tracking API error:', e);
         return res.status(500).json({ error: 'server_error' });
     }
 });
@@ -462,6 +421,108 @@ router.post('/api/v1/sales/orders/:id/pay', requireAuthApi, requireRole(['sales'
     }
 });
 
+// ====================== SALES: APPROVE/REJECT ORDER (API untuk Flutter) ======================
+router.post('/api/v1/sales/orders/:id/approve', requireAuthApi, requireRole(['sales']), express.json(), async (req, res) => {
+    try {
+        const id = req.params.id;
+        const ref = db.collection('orders').doc(id);
+        const cur = await ref.get();
+
+        if (!cur.exists) return res.status(404).json({ error: 'not_found' });
+
+        const currentData = cur.data();
+        const curStatus = (currentData.status || '').toLowerCase();
+        const paymentStatus = (currentData.payment_status || '').toLowerCase();
+
+        if (curStatus !== 'pending') return res.status(400).json({ error: 'not_pending' });
+        if (paymentStatus !== 'settlement' && paymentStatus !== 'capture') {
+            return res.status(400).json({ error: 'not_paid' });
+        }
+
+        const keterangan = typeof req.body?.keterangan === 'string' ? req.body.keterangan.trim() : '';
+
+        const history = Array.isArray(currentData.history) ? currentData.history : [];
+        history.push({
+            status: 'approved_sales',
+            by: req.user.uid,
+            by_username: req.user.username,
+            at: new Date(),
+            note: keterangan,
+        });
+
+        await ref.update({
+            status: 'approved_sales',
+            approved_sales_at: new Date(),
+            approved_sales_by: req.user.uid,
+            keterangan_sales: keterangan,
+            history,
+            updatedAt: new Date()
+        });
+
+        return res.json({ ok: true, status: 'approved_sales' });
+    } catch (e) {
+        console.error('[Sales API] Approve error:', e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
+router.post('/api/v1/sales/orders/:id/reject', requireAuthApi, requireRole(['sales']), express.json(), async (req, res) => {
+    try {
+        const id = req.params.id;
+        const ref = db.collection('orders').doc(id);
+        const cur = await ref.get();
+
+        if (!cur.exists) return res.status(404).json({ error: 'not_found' });
+
+        const currentData = cur.data();
+        if ((currentData.status || '').toLowerCase() !== 'pending') {
+            return res.status(400).json({ error: 'not_pending' });
+        }
+
+        const alasan = typeof req.body?.alasan === 'string' ? req.body.alasan.trim() : '';
+        if (!alasan) return res.status(400).json({ error: 'reason_required' });
+
+        const history = Array.isArray(currentData.history) ? currentData.history : [];
+        history.push({
+            status: 'rejected',
+            by: req.user.uid,
+            by_username: req.user.username,
+            at: new Date(),
+            note: alasan,
+        });
+
+        await ref.update({
+            status: 'rejected',
+            rejected_at: new Date(),
+            rejected_by: req.user.uid,
+            rejection_reason: alasan,
+            history,
+            updatedAt: new Date()
+        });
+
+        // Kembalikan stok pusat
+        const items = Array.isArray(currentData.items) ? currentData.items : [];
+        const batch = db.batch();
+        let hasOp = false;
+        for (const item of items) {
+            const qty = Number(item.qty || 0);
+            if (item.product_id && qty > 0) {
+                batch.update(db.collection('products').doc(item.product_id), {
+                    stok: admin.firestore.FieldValue.increment(qty),
+                    updatedAt: new Date()
+                });
+                hasOp = true;
+            }
+        }
+        if (hasOp) await batch.commit().catch(e => console.error('Failed to restore stock on reject:', e));
+
+        return res.json({ ok: true, status: 'rejected' });
+    } catch (e) {
+        console.error('[Sales API] Reject error:', e);
+        return res.status(500).json({ error: 'server_error' });
+    }
+});
+
 // ====================== SALES: REPORT PAGE (WEB) ======================
 router.get('/sales/report', requireAuth, requireRole(['sales']), csrfProtection, async (req, res) => {
     try {
@@ -484,7 +545,7 @@ router.get('/sales/report', requireAuth, requireRole(['sales']), csrfProtection,
 
         // Summary
         let totalPendapatan = 0, totalItem = 0;
-        const statusCount = { pending: 0, approved_admin: 0, dipaket: 0, dikirim: 0, selesai: 0, rejected: 0 };
+        const statusCount = { pending: 0, approved_sales: 0, approved_admin: 0, dipaket: 0, dikirim: 0, selesai: 0, rejected: 0 };
         const monthlyMap = {};
 
         for (const o of orders) {
