@@ -80,6 +80,10 @@ Update profil cabang (nama_cabang, provinsi, kota, jalan, password≥6). `200: {
 |--------|------|--------|
 | GET | `/api/v1/sales/orders` | Daftar seluruh pesanan |
 | POST | `/api/v1/sales/orders` | Buat pesanan untuk cabang (`items[]`, `cabang_id` wajib) + token Midtrans |
+| GET | `/api/v1/sales/tracking` | Tracking pengiriman (progres, resi, timeline per pesanan) |
+| POST | `/api/v1/sales/orders/:id/approve` | Konfirmasi pesanan pending yang sudah dibayar → `approved_sales`. Body `{ keterangan? }` |
+| POST | `/api/v1/sales/orders/:id/reject` | Tolak pesanan pending, stok pusat dikembalikan. Body `{ alasan }` (wajib) |
+| GET | `/api/v1/sales/report` | Laporan penjualan (orders yang dibuat sales) |
 
 ---
 

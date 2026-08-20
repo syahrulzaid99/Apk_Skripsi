@@ -274,14 +274,35 @@ class ApiClient {
         .get(ApiConfig.uri('/api/v1/sales/cabangs'), headers: headers)
         .timeout(_timeout);
   }
-  /// Sales: bayar / retry payment order
-  static Future<http.Response> salesPayOrder(String id) async {
+  /// Sales: konfirmasi pesanan cabang yang sudah dibayar lalu
+  /// diteruskan ke admin untuk verifikasi pengiriman.
+  static Future<http.Response> salesApproveOrder(String id,
+      {String keterangan = ''}) async {
     final headers = await _authHeaders();
+    headers['Content-Type'] = 'application/json';
     return http
         .post(
-            ApiConfig.uri(
-                '/api/v1/sales/orders/${Uri.encodeComponent(id)}/pay'),
-            headers: headers)
+          ApiConfig.uri(
+              '/api/v1/sales/orders/${Uri.encodeComponent(id)}/approve'),
+          headers: headers,
+          body: jsonEncode({'keterangan': keterangan}),
+        )
+        .timeout(_timeout);
+  }
+
+  /// Sales: tolak pesanan cabang yang masih pending. Stok pusat
+  /// dikembalikan otomatis oleh server. Alasan wajib diisi.
+  static Future<http.Response> salesRejectOrder(String id,
+      {required String alasan}) async {
+    final headers = await _authHeaders();
+    headers['Content-Type'] = 'application/json';
+    return http
+        .post(
+          ApiConfig.uri(
+              '/api/v1/sales/orders/${Uri.encodeComponent(id)}/reject'),
+          headers: headers,
+          body: jsonEncode({'alasan': alasan}),
+        )
         .timeout(_timeout);
   }
 

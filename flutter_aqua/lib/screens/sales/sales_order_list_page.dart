@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../widgets/shared.dart';
 import '../../widgets/smooth_list_item.dart';
-import '../cabang/cabang_order_page.dart';
 
 class SalesOrderListPage extends StatefulWidget {
   const SalesOrderListPage({super.key});
@@ -18,7 +17,7 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
   bool _loading = true;
   String _filterStatus = 'semua';
   String? _filterCabang;
-  String? _payingId;
+  String? _actionId;
 
   @override
   void initState() {
@@ -75,40 +74,172 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
     }).toList();
   }
 
-  bool _isUnpaid(Map<String, dynamic> o) {
-    final ps = (o['payment_status'] ?? 'pending').toString().toLowerCase();
-    final st = (o['status'] ?? '').toString().toLowerCase();
-    return st == 'pending' &&
-        ps != 'settlement' &&
-        ps != 'capture';
+  bool _isPaid(Map<String, dynamic> o) {
+    final ps = (o['payment_status'] ?? '').toString().toLowerCase();
+    return ps == 'settlement' || ps == 'capture';
   }
 
-  Future<void> _retryPay(Map<String, dynamic> o) async {
+  bool _canConfirm(Map<String, dynamic> o) {
+    final st = (o['status'] ?? '').toString().toLowerCase();
+    return st == 'pending' && _isPaid(o);
+  }
+
+  /// Konfirmasi pesanan cabang (status pending + sudah dibayar) ke admin.
+  Future<void> _approve(Map<String, dynamic> o) async {
     final id = o['id']?.toString() ?? '';
     if (id.isEmpty) return;
-    setState(() => _payingId = id);
+
+    final keterangan = await _showApproveDialog(o);
+    if (keterangan == null) return;
+
+    setState(() => _actionId = id);
     try {
-      final res = await ApiClient.salesPayOrder(id);
+      final res = await ApiClient.salesApproveOrder(id,
+          keterangan: keterangan);
       if (res.statusCode == 200) {
-        final body = jsonDecode(res.body);
-        final url = body['payment_url']?.toString();
-        if (url != null && url.isNotEmpty && mounted) {
-          await Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => PaymentWebViewPage(
-                paymentUrl: url, orderId: id),
-          ));
-          _fetch();
-        } else {
-          _snack('Tidak ada payment URL');
-        }
+        _snack('Pesanan ${o['kode_order'] ?? ''} dikonfirmasi ke admin');
+        _fetch();
       } else {
-        _snack('Gagal memuat pembayaran (${res.statusCode})');
+        _snack('Gagal konfirmasi (${res.statusCode}): ${_errMessage(res.body)}');
       }
     } catch (e) {
       _snack('Error: $e');
     } finally {
-      if (mounted) setState(() => _payingId = null);
+      if (mounted) setState(() => _actionId = null);
     }
+  }
+
+  /// Tolak pesanan cabang — alasan wajib diisi, stok pusat dikembalikan.
+  Future<void> _reject(Map<String, dynamic> o) async {
+    final id = o['id']?.toString() ?? '';
+    if (id.isEmpty) return;
+
+    final alasan = await _showRejectDialog(o);
+    if (alasan == null) return;
+
+    setState(() => _actionId = id);
+    try {
+      final res = await ApiClient.salesRejectOrder(id, alasan: alasan);
+      if (res.statusCode == 200) {
+        _snack('Pesanan ${o['kode_order'] ?? ''} ditolak');
+        _fetch();
+      } else {
+        _snack('Gagal menolak (${res.statusCode}): ${_errMessage(res.body)}');
+      }
+    } catch (e) {
+      _snack('Error: $e');
+    } finally {
+      if (mounted) setState(() => _actionId = null);
+    }
+  }
+
+  String _errMessage(String body) {
+    try {
+      return (jsonDecode(body)['message'] as String?) ?? '';
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Dialog konfirmasi — keterangan opsional. Mengembalikan teks catatan
+  /// atau null bila dibatalkan.
+  Future<String?> _showApproveDialog(Map<String, dynamic> o) {
+    final ctrl = TextEditingController();
+    final cs = Theme.of(context).colorScheme;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Konfirmasi pesanan?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Pesanan ${o['kode_order'] ?? ''} sudah dibayar cabang. '
+              'Dikonfirmasi dan diteruskan ke admin untuk verifikasi pengiriman.',
+              style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              decoration: const InputDecoration(
+                labelText: 'Catatan untuk admin (opsional)',
+                isDense: true,
+              ),
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Ya, konfirmasi'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dialog tolak — alasan wajib diisi. Mengembalikan alasan atau null
+  /// bila dibatalkan.
+  Future<String?> _showRejectDialog(Map<String, dynamic> o) {
+    final ctrl = TextEditingController();
+    final cs = Theme.of(context).colorScheme;
+    String? error;
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSt) => AlertDialog(
+          title: const Text('Tolak pesanan?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pesanan ${o['kode_order'] ?? ''} akan ditolak. '
+                'Stok pusat dikembalikan otomatis.',
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: ctrl,
+                decoration: InputDecoration(
+                  labelText: 'Alasan penolakan (wajib)',
+                  isDense: true,
+                  errorText: error,
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Batal'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+              ),
+              onPressed: () {
+                final v = ctrl.text.trim();
+                if (v.isEmpty) {
+                  setSt(() => error = 'Alasan penolakan wajib diisi');
+                  return;
+                }
+                Navigator.pop(ctx, v);
+              },
+              child: const Text('Ya, tolak'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _displayName(Map<String, dynamic> o) {
@@ -134,6 +265,7 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
           for (final f in [
             'semua',
             'pending',
+            'approved_sales',
             'approved_admin',
             'dipaket',
             'dikirim',
@@ -187,10 +319,8 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
                   itemBuilder: (_, i) {
                     final o = _filtered[i];
                     final st = (o['status'] ?? '').toString().toLowerCase();
-                    final paid =
-                        (o['payment_status'] ?? '').toString().toLowerCase() ==
-                            'settlement';
-                    final unpaid = _isUnpaid(o);
+                    final paid = _isPaid(o);
+                    final canConfirm = _canConfirm(o);
                     final id = o['id']?.toString() ?? '';
 
                     return SmoothListItem(index: i, child: Card(
@@ -243,24 +373,57 @@ class _SalesOrderListPageState extends State<SalesOrderListPage> {
                                 '${o['jumlah_item'] ?? 0} item | ${formatCurrency(o['total_harga'] ?? 0)}',
                                 style: TextStyle(
                                     color: cs.outline, fontSize: 13)),
-                            if (unpaid)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 8),
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: _payingId == id
-                                      ? const SizedBox(
-                                          width: 18,
-                                          height: 18,
-                                          child: CircularProgressIndicator(
-                                              strokeWidth: 2))
-                                      : FilledButton.icon(
-                                          onPressed: () => _retryPay(o),
-                                          icon: const Icon(Icons.payment),
-                                          label: const Text('Bayar'),
-                                        ),
+                            if (canConfirm) ...[
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  if (_actionId == id)
+                                    const Padding(
+                                      padding: EdgeInsets.all(8),
+                                      child: SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2),
+                                      ),
+                                    )
+                                  else ...[
+                                    OutlinedButton.icon(
+                                      style: OutlinedButton.styleFrom(
+                                        foregroundColor: cs.error,
+                                        side: BorderSide(color: cs.error),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () => _reject(o),
+                                      icon: const Icon(Icons.close, size: 16),
+                                      label: const Text('Tolak'),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    FilledButton.icon(
+                                      style: FilledButton.styleFrom(
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                      onPressed: () => _approve(o),
+                                      icon: const Icon(Icons.check, size: 16),
+                                      label: const Text('Konfirmasi'),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ] else if (st == 'pending') ...[
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: Text(
+                                  'Menunggu pembayaran cabang',
+                                  style: TextStyle(
+                                      color: cs.onSurfaceVariant,
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic),
                                 ),
                               ),
+                            ],
                           ],
                         ),
                       ),
